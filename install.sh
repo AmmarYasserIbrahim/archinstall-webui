@@ -75,18 +75,20 @@ def run_archinstall():
             master_log.write(f"[ARCHINSTALL] {line}")
             master_log.flush()
             lower_line = line.lower()
+            current_pct = install_state["percentage"]
+            
             if "formatting" in lower_line or "creating file system" in lower_line:
-                install_state = {"percentage": 15, "message": "Formatting storage block devices...", "status": "running"}
+                if current_pct < 15: install_state = {"percentage": 15, "message": "Formatting storage block devices...", "status": "running"}
             elif "waiting for time sync" in lower_line:
-                install_state = {"percentage": 20, "message": "Synchronizing system hardware clocks...", "status": "running"}
+                if current_pct < 20: install_state = {"percentage": 20, "message": "Synchronizing system hardware clocks...", "status": "running"}
             elif "pacstrap" in lower_line or "installing packages" in lower_line:
-                install_state = {"percentage": 45, "message": "Extracting base system packages...", "status": "running"}
+                if current_pct < 45: install_state = {"percentage": 45, "message": "Extracting base system packages...", "status": "running"}
             elif "bootloader" in lower_line or "systemd-boot" in lower_line or "grub" in lower_line:
-                install_state = {"percentage": 75, "message": "Injecting bootloader configurations...", "status": "running"}
+                if current_pct < 75: install_state = {"percentage": 75, "message": "Injecting bootloader configurations...", "status": "running"}
             elif "profile" in lower_line or "desktop" in lower_line:
-                install_state = {"percentage": 85, "message": "Compiling targeted desktop environments...", "status": "running"}
+                if current_pct < 85: install_state = {"percentage": 85, "message": "Compiling targeted desktop environments...", "status": "running"}
             elif "services" in lower_line or "networkmanager" in lower_line:
-                install_state = {"percentage": 92, "message": "Enabling core systemd runtime services...", "status": "running"}
+                if current_pct < 92: install_state = {"percentage": 92, "message": "Enabling core systemd runtime services...", "status": "running"}
             elif "installation completed" in lower_line:
                 install_state = {"percentage": 100, "message": "Build Successful! System ready for reboot.", "status": "completed"}
                 
@@ -119,7 +121,9 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(get_system_telemetry()).encode('utf-8'))
+            data = get_system_telemetry()
+            data['install_state'] = install_state
+            self.wfile.write(json.dumps(data).encode('utf-8'))
         elif parsed_path == '/api/progress':
             self.send_response(200)
             self.send_header('Content-type', 'text/event-stream')
@@ -149,8 +153,10 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             threading.Thread(target=run_archinstall).start()
         elif parsed_path == '/api/reboot':
             self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            os.system('umount -R /mnt && reboot')
+            self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
+            threading.Thread(target=lambda: (time.sleep(1.5), os.system('systemctl reboot'))).start()
 
 class ReuseServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
@@ -164,7 +170,7 @@ cat << 'EOF' > index.html
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arch Linux Installer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -176,13 +182,19 @@ cat << 'EOF' > index.html
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 text-gray-800">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl min-h-[600px] flex overflow-hidden border border-gray-200">
-        <div class="w-2/5 bg-gray-50 flex flex-col items-center justify-center p-8 border-r border-gray-200 hidden md:flex relative">
-            <div class="text-center absolute top-8 left-8">
-                <span class="font-bold tracking-widest uppercase text-xs text-gray-400">Arch WebUI</span>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-2 md:p-4 text-gray-800">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl min-h-[95vh] md:min-h-[650px] flex flex-col md:flex-row overflow-hidden border border-gray-200">
+        
+        <div class="w-full md:w-2/5 bg-gray-50 flex flex-row md:flex-col items-center justify-between md:justify-center p-4 md:p-8 border-b md:border-b-0 md:border-r border-gray-200 relative shrink-0">
+            <div class="flex items-center gap-3 md:absolute md:top-8 md:left-8">
+                <div class="bg-orange-500 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center shadow-md">Æ</div>
+                <div>
+                    <span class="font-bold tracking-wide uppercase text-sm text-gray-700 block md:text-gray-400">Arch WebUI</span>
+                    <span class="text-[10px] md:text-xs text-gray-400 font-mono block -mt-0.5 w-[160px] md:w-auto truncate" id="target-cpu">Connecting...</span>
+                </div>
             </div>
-            <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-6 opacity-90">
+            
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="hidden md:block w-48 h-48 mb-6 opacity-90 mt-8">
                 <path d="M100 40L160 70V130L100 160L40 130V70L100 40Z" fill="#ffffff" stroke="#e5e7eb" stroke-width="4" stroke-linejoin="round"/>
                 <path d="M100 40L160 70L100 100L40 70L100 40Z" fill="#f9fafb" stroke="#d1d5db" stroke-width="2" stroke-linejoin="round"/>
                 <path d="M100 100V160" stroke="#d1d5db" stroke-width="2" stroke-linejoin="round"/>
@@ -192,30 +204,23 @@ cat << 'EOF' > index.html
                 <rect x="105" y="80" width="20" height="15" fill="#e5e7eb" transform="skewY(26)"/>
                 <rect x="65" y="110" width="30" height="10" fill="#f97316" transform="skewY(-26)" opacity="0.8"/>
             </svg>
-            <div class="text-center">
+            
+            <div class="text-center hidden md:block">
                 <h3 class="font-bold text-gray-700 text-lg">System Configuration</h3>
-                <p id="target-cpu" class="text-xs text-gray-400 mt-2 font-medium">Connecting...</p>
             </div>
         </div>
 
-        <div class="w-full md:w-3/5 flex flex-col bg-white">
-            <div class="px-10 pt-10 pb-4 flex justify-between items-center border-b border-gray-100">
-                <h2 id="step-title" class="text-xl font-bold text-gray-800">Select target drive</h2>
+        <div class="w-full md:w-3/5 flex flex-col bg-white flex-grow">
+            <div class="px-6 md:px-10 pt-6 md:pt-10 pb-4 flex justify-between items-center border-b border-gray-100 shrink-0">
+                <h2 id="step-title" class="text-lg md:text-xl font-bold text-gray-800">Select target drive</h2>
                 <span class="bg-white border border-gray-200 text-gray-500 px-3 py-1 rounded-md text-xs font-semibold shadow-sm" id="step-indicator">Step 1 of 4</span>
             </div>
 
-            <div class="p-10 flex-grow overflow-y-auto custom-scrollbar">
+            <div class="p-6 md:p-10 flex-grow overflow-y-auto custom-scrollbar">
                 <form id="wizard-form" class="space-y-6">
                     <div id="step-1" class="wizard-step block">
                         <div class="border border-gray-300 rounded-lg overflow-hidden mb-6 h-48 custom-scrollbar overflow-y-auto" id="disk-list"></div>
                         <div class="flex items-center justify-between gap-4 mb-4">
-                            <div class="w-1/2">
-                                <label class="block text-xs font-semibold text-gray-500 mb-2">Filesystem:</label>
-                                <select id="fs" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
-                                    <option value="ext4">Ext4 (Standard)</option>
-                                    <option value="btrfs">Btrfs (Modern + Snapshots)</option>
-                                </select>
-                            </div>
                             <div class="w-1/2">
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Bootloader:</label>
                                 <select id="bootloader" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
@@ -226,26 +231,35 @@ cat << 'EOF' > index.html
                         </div>
                         <div class="flex items-center gap-3 py-3 px-4 bg-gray-50 border border-gray-200 rounded-md">
                             <input type="checkbox" id="swap" checked class="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 accent-orange-500 cursor-pointer">
-                            <label for="swap" class="text-sm font-medium text-gray-700 cursor-pointer">Allocate zRAM Swap Module</label>
+                            <label for="swap" class="text-sm font-medium text-gray-700 cursor-pointer">Allocate zRAM Swap</label>
                         </div>
                     </div>
 
                     <div id="step-2" class="wizard-step hidden">
-                        <label class="block text-xs font-semibold text-gray-500 mb-2">Desktop environment</label>
-                        <div class="border border-gray-300 rounded-lg overflow-hidden mb-4 h-40 custom-scrollbar overflow-y-auto">
-                            <div class="desktop-item p-3.5 text-sm text-orange-600 font-medium bg-orange-50/50 border-l-2 border-orange-500 cursor-pointer transition-colors" data-val="Awesome" onclick="selectDesktop('Awesome', this)">Awesome WM</div>
-                            <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="KDE Plasma" onclick="selectDesktop('KDE Plasma', this)">KDE Plasma</div>
-                            <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="GNOME" onclick="selectDesktop('GNOME', this)">GNOME</div>
-                            <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="Hyprland" onclick="selectDesktop('Hyprland', this)">Hyprland</div>
-                            <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="none" onclick="selectDesktop('none', this)">Minimal Server (No GUI)</div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-2">Partition Layout</label>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            <div class="flex font-bold text-[10px] md:text-xs text-gray-500 mb-2 border-b border-gray-200 pb-2">
+                                <div class="w-[30%]">Mount</div>
+                                <div class="w-[25%]">FS</div>
+                                <div class="w-[35%]">Size</div>
+                                <div class="w-[10%] text-center">Del</div>
+                            </div>
+                            <div id="partition-list" class="space-y-2 mb-3"></div>
+                            <button type="button" onclick="addPartition()" class="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded text-gray-700 hover:bg-gray-100 font-semibold shadow-sm">+ Add Partition</button>
+                        </div>
+                    </div>
+
+                    <div id="step-3" class="wizard-step hidden">
+                        <label class="block text-xs font-semibold text-gray-500 mb-2">Desktop Environment</label>
+                        <div class="border border-gray-300 rounded-lg overflow-hidden mb-4 p-2 custom-scrollbar overflow-y-auto max-h-48 grid grid-cols-2 gap-2" id="desktop-grid">
                         </div>
                         
                         <label class="block text-xs font-semibold text-gray-500 mb-2 mt-4">Additional Services</label>
                         <div class="grid grid-cols-2 gap-3 mb-4">
-                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="bluetooth" checked class="text-orange-500 focus:ring-orange-500 rounded"> Bluetooth Setup</label>
-                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="firewall" checked class="text-orange-500 focus:ring-orange-500 rounded"> UFW Firewall</label>
-                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="printing" checked class="text-orange-500 focus:ring-orange-500 rounded"> CUPS Printing</label>
-                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="fonts" checked class="text-orange-500 focus:ring-orange-500 rounded"> Noto/Global Fonts</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-xs md:text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="bluetooth" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4"> Bluetooth</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-xs md:text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="firewall" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4"> UFW Firewall</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-xs md:text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="printing" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4"> CUPS Print</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-xs md:text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="fonts" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4"> Noto Fonts</label>
                         </div>
 
                         <div class="flex items-center justify-between gap-4">
@@ -267,7 +281,7 @@ cat << 'EOF' > index.html
                         </div>
                     </div>
 
-                    <div id="step-3" class="wizard-step hidden space-y-5">
+                    <div id="step-4" class="wizard-step hidden space-y-5">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Hostname</label>
@@ -278,17 +292,17 @@ cat << 'EOF' > index.html
                                 <input type="text" id="timezone" value="UTC" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500">
                             </div>
                         </div>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 mt-4">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 md:p-5 mt-4">
                             <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">User Accounts</h4>
                             <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div><input type="text" id="username" placeholder="Username" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500"></div>
-                                <div><input type="password" id="password" placeholder="Password" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500"></div>
+                                <div><input type="text" id="username" placeholder="Username" class="w-full border border-gray-300 rounded-md py-2.5 px-3 md:px-4 text-sm focus:outline-none focus:border-orange-500"></div>
+                                <div><input type="password" id="password" placeholder="User Pass" class="w-full border border-gray-300 rounded-md py-2.5 px-3 md:px-4 text-sm focus:outline-none focus:border-orange-500"></div>
                             </div>
-                            <div><input type="password" id="root-password" placeholder="Root Password" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-red-400"></div>
+                            <div><input type="password" id="root-password" placeholder="Root Password" class="w-full border border-gray-300 rounded-md py-2.5 px-3 md:px-4 text-sm focus:outline-none focus:border-red-400"></div>
                         </div>
                     </div>
 
-                    <div id="step-4" class="wizard-step hidden flex flex-col items-center justify-center h-full pt-8">
+                    <div id="step-5" class="wizard-step hidden flex flex-col items-center justify-center h-full pt-8 pb-8">
                         <div class="text-center w-full">
                             <h2 class="text-xl font-bold text-gray-800 mb-2">Installing Arch Linux</h2>
                             <p id="progress-msg" class="text-sm font-medium text-gray-500 mb-8">Compiling definitions...</p>
@@ -299,24 +313,31 @@ cat << 'EOF' > index.html
                             <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-8">
                                 <div id="progress-bar-fill" class="bg-orange-500 h-full rounded-full w-0 transition-all duration-500 ease-out"></div>
                             </div>
-                            <button type="button" id="btn-reboot" class="hidden w-full bg-gray-900 hover:bg-black text-white font-medium py-3 rounded-lg text-sm transition-colors">Restart Now</button>
+                            <button type="button" id="btn-reboot" class="hidden w-full bg-gray-900 hover:bg-black text-white font-medium py-3 rounded-lg text-sm transition-colors shadow-md">Restart Now</button>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <div id="nav-footer" class="px-10 py-5 bg-gray-50 border-t border-gray-200 flex justify-between items-center rounded-br-2xl">
-                <button type="button" id="btn-back" class="text-gray-500 hover:text-gray-800 font-medium text-sm hidden">Back</button>
-                <button type="button" id="btn-next" class="ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm">Continue</button>
+            <div id="nav-footer" class="px-6 md:px-10 py-5 bg-gray-50 border-t border-gray-200 flex justify-between items-center shrink-0">
+                <button type="button" id="btn-back" class="text-gray-500 hover:text-gray-800 font-medium text-sm hidden py-2 px-4 -ml-4">Back</button>
+                <button type="button" id="btn-next" class="ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm shadow-sm">Continue</button>
             </div>
         </div>
     </div>
 
     <script>
-        let currentStep = 1; const totalSteps = 4;
-        let selectedDiskVal = ""; let selectedDiskBytes = 0; let selectedDesktopVal = "Awesome";
-        const stepTitles = ["Select target drive", "Select environment", "Set credentials", "Installing system"];
+        let currentStep = 1; const totalSteps = 5;
+        let selectedDiskVal = ""; let selectedDiskBytes = 0; let selectedDesktopVal = "none";
+        const stepTitles = ["Select target drive", "Configure partitions", "Select environment", "Set credentials", "System Deployment"];
         
+        let partitions = [
+            { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 512, unit: 'MiB' },
+            { id: genUUID(), mountpoint: '/', fs: 'btrfs', size: 100, unit: 'Percent' }
+        ];
+
+        const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Cutefish","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","KDE Plasma","Labwc","Lxqt","Mate","Niri","Qtile","River","Sway","Xfce4","Xmonad","none"];
+
         function genUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -324,39 +345,97 @@ cat << 'EOF' > index.html
             });
         }
 
-        fetch('/api/status').then(r => r.json()).then(data => {
-            document.getElementById('target-cpu').innerText = `${data.cpu} | ${data.boot_mode}`;
-            const diskList = document.getElementById('disk-list');
-            let isFirst = true;
-            data.hardware.blockdevices.forEach(dev => {
-                if(dev.type === 'disk') {
-                    const extraClasses = isFirst ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-transparent hover:bg-gray-50';
-                    if(isFirst) {
-                        selectedDiskVal = `/dev/${dev.name}`;
-                        selectedDiskBytes = parseInt(dev.size);
-                    }
-                    const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
-                    diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', ${dev.size}, this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
-                    isFirst = false;
-                }
+        window.onload = () => {
+            const dGrid = document.getElementById('desktop-grid');
+            desktops.forEach(d => {
+                let text = d === 'none' ? 'Minimal (CLI)' : d;
+                let c = d === 'none' ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-gray-200 hover:bg-gray-50';
+                dGrid.innerHTML += `<div class="desktop-item p-2 text-[11px] md:text-xs font-semibold border rounded cursor-pointer transition-colors ${c}" data-val="${d}" onclick="selectDesktop('${d}', this)">${text}</div>`;
             });
-        });
+            renderPartitions();
+            
+            fetch('/api/status').then(r => r.json()).then(data => {
+                document.getElementById('target-cpu').innerText = `${data.cpu} | ${data.boot_mode}`;
+                
+                if(data.install_state && data.install_state.status !== "idle") {
+                    document.getElementById('step-1').classList.add('hidden');
+                    document.getElementById('step-5').classList.remove('hidden');
+                    document.getElementById('nav-footer').style.display = 'none';
+                    document.getElementById('step-indicator').innerText = "Installing";
+                    document.getElementById('step-title').innerText = stepTitles[4];
+                    
+                    if(data.install_state.status === "completed") {
+                        document.getElementById('progress-msg').innerText = "Build Successful! System ready for reboot.";
+                        document.getElementById('progress-pct').innerText = "100%";
+                        document.getElementById('progress-bar-fill').style.width = "100%";
+                        document.getElementById('btn-reboot').classList.remove('hidden');
+                    } else {
+                        startTerminalStream();
+                    }
+                    return;
+                }
+
+                const diskList = document.getElementById('disk-list');
+                let isFirst = true;
+                data.hardware.blockdevices.forEach(dev => {
+                    if(dev.type === 'disk') {
+                        const extraClasses = isFirst ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-transparent hover:bg-gray-50';
+                        if(isFirst) { selectedDiskVal = `/dev/${dev.name}`; selectedDiskBytes = parseInt(dev.size); }
+                        const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
+                        diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', ${dev.size}, this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
+                        isFirst = false;
+                    }
+                });
+            });
+        };
+
+        function renderPartitions() {
+            const list = document.getElementById('partition-list');
+            list.innerHTML = '';
+            partitions.forEach((p, i) => {
+                list.innerHTML += `
+                    <div class="flex gap-1 md:gap-2 items-center">
+                        <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] border border-gray-300 p-1.5 rounded text-[10px] md:text-xs outline-none focus:border-orange-500">
+                        <select onchange="partitions[${i}].fs=this.value" class="w-[25%] border border-gray-300 p-1.5 rounded text-[10px] md:text-xs outline-none">
+                            <option value="fat32" ${p.fs=='fat32'?'selected':''}>fat32</option>
+                            <option value="ext4" ${p.fs=='ext4'?'selected':''}>ext4</option>
+                            <option value="btrfs" ${p.fs=='btrfs'?'selected':''}>btrfs</option>
+                            <option value="xfs" ${p.fs=='xfs'?'selected':''}>xfs</option>
+                            <option value="linux-swap" ${p.fs=='linux-swap'?'selected':''}>swap</option>
+                        </select>
+                        <div class="w-[35%] flex border border-gray-300 rounded overflow-hidden">
+                            <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] md:w-1/2 p-1.5 text-[10px] md:text-xs outline-none border-r border-gray-300">
+                            <select onchange="partitions[${i}].unit=this.value" class="w-[45%] md:w-1/2 bg-gray-50 text-[10px] outline-none">
+                                <option value="MiB" ${p.unit=='MiB'?'selected':''}>MB</option>
+                                <option value="GiB" ${p.unit=='GiB'?'selected':''}>GB</option>
+                                <option value="Percent" ${p.unit=='Percent'?'selected':''}>%</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="partitions.splice(${i}, 1); renderPartitions()" class="w-[10%] text-red-500 font-black text-xs md:text-sm hover:bg-red-50 rounded py-1">X</button>
+                    </div>
+                `;
+            });
+        }
+
+        function addPartition() {
+            partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'ext4', size: 10, unit: 'GiB' });
+            renderPartitions();
+        }
 
         function selectDisk(val, bytes, el) {
-            selectedDiskVal = val;
-            selectedDiskBytes = parseInt(bytes);
+            selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
             document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50");
             el.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-orange-600 bg-orange-50/50 border-orange-500";
         }
 
         function selectDesktop(val, el) {
             selectedDesktopVal = val;
-            document.querySelectorAll('.desktop-item').forEach(i => i.className = "desktop-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50");
-            el.className = "desktop-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-orange-600 bg-orange-50/50 border-orange-500";
+            document.querySelectorAll('.desktop-item').forEach(i => i.className = "desktop-item p-2 text-[11px] md:text-xs font-semibold border rounded cursor-pointer transition-colors text-gray-600 border-gray-200 hover:bg-gray-50");
+            el.className = "desktop-item p-2 text-[11px] md:text-xs font-semibold border rounded cursor-pointer transition-colors text-orange-600 bg-orange-50/50 border-orange-500";
         }
 
         document.getElementById('btn-next').addEventListener('click', () => {
-            if (currentStep === 3) { submitArchinstallConfig(); }
+            if (currentStep === 4) { submitArchinstallConfig(); }
             if (currentStep < totalSteps) {
                 document.getElementById(`step-${currentStep}`).classList.add('hidden');
                 currentStep++;
@@ -375,76 +454,72 @@ cat << 'EOF' > index.html
         });
 
         function updateUI() {
-            document.getElementById('step-indicator').innerText = `Step ${currentStep} of 3`;
-            document.getElementById('step-title').innerText = stepTitles[currentStep - 1];
-            document.getElementById('btn-back').style.display = (currentStep > 1 && currentStep < 4) ? 'block' : 'none';
-            if (currentStep === 3) {
+            document.getElementById('btn-back').style.display = (currentStep > 1 && currentStep < totalSteps) ? 'block' : 'none';
+            if (currentStep < totalSteps) {
+                document.getElementById('step-indicator').innerText = `Step ${currentStep} of ${totalSteps - 1}`;
+                document.getElementById('step-title').innerText = stepTitles[currentStep - 1];
+            } else {
+                document.getElementById('step-indicator').innerText = "Installing";
+                document.getElementById('step-title').innerText = stepTitles[4];
+            }
+            
+            if (currentStep === totalSteps - 1) {
                 document.getElementById('btn-next').innerText = "Install Now";
-                document.getElementById('btn-next').className = "ml-auto bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-6 rounded-md text-sm border border-transparent";
-            } else if (currentStep === 4) {
+                document.getElementById('btn-next').className = "ml-auto bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-6 rounded-md text-sm border border-transparent shadow-sm";
+            } else if (currentStep === totalSteps) {
                 document.getElementById('nav-footer').style.display = 'none';
             } else {
                 document.getElementById('btn-next').innerText = "Continue";
-                document.getElementById('btn-next').className = "ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm";
+                document.getElementById('btn-next').className = "ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm shadow-sm";
             }
         }
 
         async function submitArchinstallConfig() {
-            const bootSizeMiB = 1024;
-            const bootSizeBytes = bootSizeMiB * 1024 * 1024;
-            const startBytes = 1048576;
-            const isBtrfs = document.getElementById('fs').value === 'btrfs';
+            let currentStartBytes = 1048576;
+
+            let btrfsConfigured = false;
+            let partsPayload = partitions.map(p => {
+                let pSizeB = 0;
+                if(p.unit === 'Percent') pSizeB = Math.floor((selectedDiskBytes - currentStartBytes) * (p.size / 100));
+                else if(p.unit === 'MiB') pSizeB = p.size * 1024 * 1024;
+                else if(p.unit === 'GiB') pSizeB = p.size * 1024 * 1024 * 1024;
+
+                let isBoot = (p.mountpoint === '/boot' || p.mountpoint === '/boot/efi' || p.fs === 'fat32');
+                let isBtrfs = p.fs === 'btrfs';
+                if(isBtrfs) btrfsConfigured = true;
+                
+                let btrfsVols = (isBtrfs && p.mountpoint === '/') ? [
+                    { "mountpoint": "/", "name": "@" },
+                    { "mountpoint": "/home", "name": "@home" },
+                    { "mountpoint": "/var/log", "name": "@log" },
+                    { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" }
+                ] : [];
+
+                let pObj = {
+                    "obj_id": p.id,
+                    "status": "create",
+                    "type": "primary",
+                    "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes },
+                    "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB },
+                    "fs_type": p.fs,
+                    "mountpoint": (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint,
+                    "mount_options": isBtrfs ? ["compress=zstd"] : [],
+                    "flags": isBoot ? ["boot"] : [],
+                    "dev_path": null,
+                    "btrfs": btrfsVols
+                };
+                currentStartBytes += pSizeB;
+                return pObj;
+            });
 
             const configPayload = {
                 "version": "4.3",
                 "archinstall-language": "English",
-                "app_config": {
-                    "audio_config": { "audio": document.getElementById('audio').value }
-                },
-                "bootloader_config": {
-                    "bootloader": document.getElementById('bootloader').value,
-                    "removable": false,
-                    "uki": false
-                },
+                "app_config": { "audio_config": { "audio": document.getElementById('audio').value } },
+                "bootloader_config": { "bootloader": document.getElementById('bootloader').value, "removable": false, "uki": false },
                 "disk_config": {
                     "config_type": "default_layout",
-                    "device_modifications": [{
-                        "device": selectedDiskVal,
-                        "wipe": true,
-                        "partitions": [
-                            {
-                                "obj_id": genUUID(),
-                                "status": "create",
-                                "type": "primary",
-                                "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": startBytes },
-                                "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": bootSizeBytes },
-                                "fs_type": "fat32",
-                                "mountpoint": "/boot",
-                                "mount_options": [],
-                                "flags": ["boot"],
-                                "dev_path": null,
-                                "btrfs": []
-                            },
-                            {
-                                "obj_id": genUUID(),
-                                "status": "create",
-                                "type": "primary",
-                                "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": startBytes + bootSizeBytes },
-                                "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": selectedDiskBytes - (startBytes + bootSizeBytes) },
-                                "fs_type": document.getElementById('fs').value,
-                                "mountpoint": isBtrfs ? null : "/",
-                                "mount_options": isBtrfs ? ["compress=zstd"] : [],
-                                "flags": [],
-                                "dev_path": null,
-                                "btrfs": isBtrfs ? [
-                                    { "mountpoint": "/", "name": "@" },
-                                    { "mountpoint": "/home", "name": "@home" },
-                                    { "mountpoint": "/var/log", "name": "@log" },
-                                    { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" }
-                                ] : []
-                            }
-                        ]
-                    }]
+                    "device_modifications": [{ "device": selectedDiskVal, "wipe": true, "partitions": partsPayload }]
                 },
                 "hostname": document.getElementById('hostname').value,
                 "kernels": [document.getElementById('kernel').value],
@@ -458,30 +533,28 @@ cat << 'EOF' > index.html
                 "timezone": document.getElementById('timezone').value
             };
 
-            if (isBtrfs) {
-                configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
-            }
-            if (document.getElementById('bluetooth').checked) {
-                configPayload.app_config.bluetooth_config = { "enabled": true };
-            }
-            if (document.getElementById('firewall').checked) {
-                configPayload.app_config.firewall_config = { "firewall": "ufw" };
-            }
-            if (document.getElementById('printing').checked) {
-                configPayload.app_config.print_service_config = { "enabled": true };
-            }
-            if (document.getElementById('fonts').checked) {
-                configPayload.app_config.fonts_config = { "fonts": ["noto-fonts-emoji", "noto-fonts-cjk", "ttf-liberation", "ttf-dejavu", "noto-fonts"] };
-            }
+            if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
+            if (document.getElementById('bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
+            if (document.getElementById('firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
+            if (document.getElementById('printing').checked) configPayload.app_config.print_service_config = { "enabled": true };
+            if (document.getElementById('fonts').checked) configPayload.app_config.fonts_config = { "fonts": ["noto-fonts-emoji", "noto-fonts-cjk", "ttf-liberation", "ttf-dejavu", "noto-fonts"] };
 
             if (selectedDesktopVal !== "none") {
                 let mainType = "Desktop";
-                if (["Awesome", "Bspwm", "Hyprland", "Sway", "i3-wm", "Qtile"].includes(selectedDesktopVal)) mainType = "WindowMgr";
+                const wms = ["Awesome","Bspwm","Hyprland","i3-wm","Labwc","Niri","Qtile","River","Sway","Xmonad"];
+                const polkits = ["Hyprland","Sway","Labwc","Niri"];
+                if (wms.includes(selectedDesktopVal)) mainType = "WindowMgr";
+                
+                let cSettings = {};
+                cSettings[selectedDesktopVal] = {};
+                if(polkits.includes(selectedDesktopVal)) cSettings[selectedDesktopVal].seat_access = "polkit";
+                if(selectedDesktopVal === "KDE Plasma") cSettings[selectedDesktopVal].plasma_flavor = "plasma-meta";
+
                 configPayload.profile_config = {
                     "gfx_driver": "All open-source",
                     "greeter": "sddm",
                     "profile": {
-                        "custom_settings": {},
+                        "custom_settings": cSettings,
                         "details": [selectedDesktopVal],
                         "main": mainType
                     }
@@ -522,8 +595,9 @@ cat << 'EOF' > index.html
         }
 
         document.getElementById('btn-reboot').addEventListener('click', async () => {
+            document.getElementById('btn-reboot').innerText = "Rebooting Hardware...";
+            document.getElementById('btn-reboot').classList.add('opacity-50', 'cursor-not-allowed');
             await fetch('/api/reboot', { method: 'POST' });
-            document.getElementById('btn-reboot').innerText = "Rebooting System...";
         });
     </script>
 </body>
