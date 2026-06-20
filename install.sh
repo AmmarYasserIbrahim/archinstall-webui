@@ -379,8 +379,8 @@ cat << 'EOF' > index.html
                                 "fs_type": "fat32",
                                 "mount_options": [],
                                 "mountpoint": "/boot",
-                                "size": {"sector_size": null, "unit": "MiB", "value": 512},
-                                "start": {"sector_size": null, "unit": "MiB", "value": 1},
+                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 512},
+                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 1},
                                 "status": "create",
                                 "type": "primary"
                             },
@@ -390,8 +390,8 @@ cat << 'EOF' > index.html
                                 "fs_type": document.getElementById('fs').value,
                                 "mount_options": [],
                                 "mountpoint": "/",
-                                "size": {"sector_size": null, "unit": "Percent", "value": 100},
-                                "start": {"sector_size": null, "unit": "MiB", "value": 513},
+                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "Percent", "value": 100},
+                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 513},
                                 "status": "create",
                                 "type": "primary"
                             }
