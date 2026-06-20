@@ -383,7 +383,7 @@ cat << 'EOF' > index.html
                         const extraClasses = isFirst ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-transparent hover:bg-gray-50';
                         if(isFirst) { selectedDiskVal = `/dev/${dev.name}`; selectedDiskBytes = parseInt(dev.size); }
                         const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
-                        diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', dev.size, this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
+                        diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', '${dev.size}', this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
                         isFirst = false;
                     }
                 });
