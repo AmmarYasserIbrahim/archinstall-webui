@@ -453,27 +453,42 @@ python3 server.py &
 PYTHON_PID=$!
 
 echo " [+] Negotiating high-speed encrypted outbound tunnel layers..."
-ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -R 80:localhost:5000 free.pinggy.io 2>/dev/null > /tmp/tunnel.log &
+# Use standard flags to make sure the SSH output doesn't buffer abnormally
+ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 -R 80:localhost:5000 free.pinggy.io > /tmp/tunnel.log 2>&1 &
 SSH_PID=$!
 
-sleep 4
+sleep 5
+
+# Scrape the public HTTPS tunnel output URL out of the log
 PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.pinggy\.link" /tmp/tunnel.log | head -n 1)
+LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP=$(hostname -I | awk '{print $1}')
+fi
+
+# Fallback block: If public tunnel fails, route everything seamlessly over LAN
+if [ -z "$PUBLIC_URL" ]; then
+    DISPLAY_URL="http://${LOCAL_IP}:5000"
+    CONNECTION_MODE="⚠️  LOCAL AREA NETWORK FALLBACK (Tunnel Failed)"
+else
+    DISPLAY_URL="${PUBLIC_URL}"
+    CONNECTION_MODE="🌐 SECURE PUBLIC SSH TUNNEL"
+fi
 
 clear
 echo "===================================================================="
-echo "   NATIVE DEPLOYMENT GATEWAY TUNNEL ESTABLISHED SUCCESSFULLY        "
+echo "   NATIVE DEPLOYMENT GATEWAY ACTIVE                                "
 echo "===================================================================="
-echo " Target Local IP: $(ip route get 1.1.1.1 | awk '{print $7}')"
-echo " Secure Web Hook: ${PUBLIC_URL}"
+echo " Connection Mode: ${CONNECTION_MODE}"
+echo " Interface URL:   ${DISPLAY_URL}"
 echo "===================================================================="
 echo ""
-qrencode -t utf8i "${PUBLIC_URL}"
+qrencode -t utf8i "${DISPLAY_URL}"
 echo ""
 echo " ⏳ Awaiting JSON compilation from your mobile CRM dashboard..."
 
-# A simple terminal progress bar reader that polls the python API
+# Keep the foreground script loop alive and clear terminal print logs
 while true; do
-    curl -s localhost:5000/api/status > /dev/null 2>&1
     sleep 3
     if ! kill -0 $PYTHON_PID 2>/dev/null; then break; fi
 done
