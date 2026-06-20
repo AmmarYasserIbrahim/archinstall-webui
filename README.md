@@ -30,9 +30,8 @@ A decentralized, zero-dependency remote configuration wizard for Arch Linux. Thi
 
 Boot your target server or virtual machine into an official **Arch Linux Live ISO** image and run the following automated micro-command:
 
-    curl -sL is.gd/archui | bash
+    curl -sL is.gd/archinstall_webui | bash
 
-*(Note: Replace `is.gd/archui` with your own short URL generated from your raw launch.sh path)*
 
 ### The Execution Process
 1. The script updates package markers and allocations.
