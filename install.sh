@@ -1,7 +1,7 @@
 #!/bin/bash
 clear
 
-LOG_FILE="/tmp/archinstall-web.log"
+LOG_FILE="/tmp/archinstall-webui.log"
 echo "--- NEW INSTALLATION SESSION: $(date) ---" > "$LOG_FILE"
 
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1
@@ -26,7 +26,7 @@ import time
 import logging
 from urllib.parse import urlparse
 
-LOG_FILE = '/tmp/archinstall-web.log'
+LOG_FILE = '/tmp/archinstall-webui.log'
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.DEBUG,
@@ -41,25 +41,32 @@ CREDS_PATH = '/tmp/creds.json'
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
 
 def get_system_telemetry():
+    logging.debug("GET /api/status - Gathering hardware configuration profile")
     telemetry = {"cpu": "Unknown", "boot_mode": "BIOS", "hardware": {}}
     try:
         cpu_out = subprocess.check_output('lscpu | grep "Model name:" | sed "s/Model name: *//"', shell=True)
         telemetry['cpu'] = cpu_out.decode('utf-8').strip()
-    except: pass
+    except Exception as e:
+        logging.error(f"Telemetry CPU parsing exception: {str(e)}")
     telemetry['boot_mode'] = "UEFI" if os.path.exists('/sys/firmware/efi/efivars') else "BIOS"
     try:
         lsblk_out = subprocess.check_output('lsblk -Jno NAME,SIZE,TYPE', shell=True)
         telemetry['hardware'] = json.loads(lsblk_out.decode('utf-8'))
-    except: pass
+    except Exception as e:
+        logging.error(f"Telemetry storage layout execution exception: {str(e)}")
+    logging.debug(f"Telemetry processing complete: {json.dumps(telemetry)}")
     return telemetry
 
 def run_archinstall():
     global install_state
+    logging.info("Spawning subprocess execution worker framework")
+    
     install_state = {"percentage": 5, "message": "Synchronizing pacman mirror repositories...", "status": "running"}
-    os.system('pacman -Sy --noconfirm >> /tmp/archinstall-web.log 2>&1')
+    os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
     install_state = {"percentage": 10, "message": "Initializing official Archinstall engine...", "status": "running"}
     
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
+    logging.info(f"Target system execution string command array: {json.dumps(cmd)}")
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
     with open(LOG_FILE, 'a') as master_log:
@@ -83,6 +90,7 @@ def run_archinstall():
                 install_state = {"percentage": 100, "message": "Build Successful! System ready for reboot.", "status": "completed"}
                 
     process.wait()
+    logging.info(f"Subprocess terminated with exit code return value: {process.returncode}")
     if process.returncode == 0:
         install_state = {"percentage": 100, "message": "Build Successful! System ready for reboot.", "status": "completed"}
     else:
@@ -132,14 +140,24 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         if parsed_path == '/api/submit':
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
-            with open(CONFIG_PATH, 'w') as f: json.dump(post_data.get('config', {}), f, indent=4)
-            with open(CREDS_PATH, 'w') as f: json.dump(post_data.get('creds', {}), f, indent=4)
+            
+            logging.debug("POST /api/submit - Full raw payload matrix dump received:")
+            logging.debug(json.dumps(post_data, indent=4))
+            
+            config_payload = post_data.get('config', {})
+            creds_payload = post_data.get('creds', {})
+            
+            logging.info("Writing deployment definitions payload arrays to localized configuration targets")
+            with open(CONFIG_PATH, 'w') as f: json.dump(config_payload, f, indent=4)
+            with open(CREDS_PATH, 'w') as f: json.dump(creds_payload, f, indent=4)
+            
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
             threading.Thread(target=run_archinstall).start()
         elif parsed_path == '/api/reboot':
+            logging.warning("POST /api/reboot - Local network infrastructure calling standard hardware reset execution sequence")
             self.send_response(200)
             self.end_headers()
             os.system('umount -R /mnt && reboot')
@@ -374,28 +392,30 @@ cat << 'EOF' > index.html
                         "device": selectedDiskVal,
                         "partitions": [
                             {
-                                "btrfs": [],
-                                "dev_path": selectedDiskVal + "1",
-                                "flags": ["boot"],
-                                "fs_type": "fat32",
-                                "mount_options": [],
-                                "mountpoint": "/boot",
-                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 512},
-                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 1},
+                                "obj_id": "11111111-2222-3333-4444-555555555555",
                                 "status": "create",
-                                "type": "primary"
+                                "type": "primary",
+                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 1},
+                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 512},
+                                "fs_type": "fat32",
+                                "mountpoint": "/boot",
+                                "mount_options": [],
+                                "flags": ["boot"],
+                                "dev_path": selectedDiskVal + "1",
+                                "btrfs": []
                             },
                             {
-                                "btrfs": [],
-                                "dev_path": selectedDiskVal + "2",
-                                "flags": [],
-                                "fs_type": document.getElementById('fs').value,
-                                "mount_options": [],
-                                "mountpoint": "/",
-                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "Percent", "value": 100},
-                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 513},
+                                "obj_id": "66666666-7777-8888-9999-000000000000",
                                 "status": "create",
-                                "type": "primary"
+                                "type": "primary",
+                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 513},
+                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "Percent", "value": 100},
+                                "fs_type": document.getElementById('fs').value,
+                                "mountpoint": "/",
+                                "mount_options": [],
+                                "flags": [],
+                                "dev_path": selectedDiskVal + "2",
+                                "btrfs": []
                             }
                         ],
                         "wipe": true
