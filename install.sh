@@ -13,18 +13,23 @@ echo " [+] System logs are actively writing to: ${LOG_FILE}"
 echo "--- NEW INSTALLATION SESSION: $(date) ---" > "$LOG_FILE"
 echo "[BASH] Validating local Arch Linux packages..." >> "$LOG_FILE"
 
-# Silently update and install dependencies, funneling output to the log
+# Silently update and install dependencies
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1
 
 mkdir -p /tmp/engine && cd /tmp/engine
 
-echo "[BASH] Sweeping environment for lingering socket processes..." >> "$LOG_FILE"
-pkill -f "server.py" >> "$LOG_FILE" 2>&1
-pkill -f "localhost.run" >> "$LOG_FILE" 2>&1
-if command -v fuser &> /dev/null; then
-    fuser -k 5000/tcp >> "$LOG_FILE" 2>&1
+echo " [+] Sweeping environment and forcefully clearing ports..."
+# LAYER 1 DEFENSE: Aggressive Kill Processes
+pkill -9 -f "server.py" >/dev/null 2>&1
+pkill -9 -f "localhost.run" >/dev/null 2>&1
+
+# Target and destroy anything holding Port 5000 specifically
+PORT_PID=$(ss -lptn 'sport = :5000' 2>/dev/null | grep -oP 'pid=\K\d+' | head -n 1)
+if [ ! -z "$PORT_PID" ]; then
+    kill -9 "$PORT_PID" >/dev/null 2>&1
 fi
-sleep 1
+
+sleep 2 # Give the kernel a moment to release the file descriptors
 
 echo " [+] Generating local server infrastructure natively..."
 
@@ -42,7 +47,6 @@ import time
 import logging
 from urllib.parse import urlparse
 
-# Configure extensive Python logging
 LOG_FILE = '/tmp/archinstall-web.log'
 logging.basicConfig(
     filename=LOG_FILE,
@@ -58,23 +62,18 @@ CREDS_PATH = '/tmp/creds.json'
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
 
 def get_system_telemetry():
-    logging.info("Gathering system telemetry (CPU, Boot Mode, Disks).")
     telemetry = {"cpu": "Unknown", "boot_mode": "BIOS", "hardware": {}}
     try:
         cpu_out = subprocess.check_output('lscpu | grep "Model name:" | sed "s/Model name: *//"', shell=True)
         telemetry['cpu'] = cpu_out.decode('utf-8').strip()
-    except Exception as e: 
-        logging.error(f"Failed to fetch CPU telemetry: {e}")
+    except: pass
     
     telemetry['boot_mode'] = "UEFI" if os.path.exists('/sys/firmware/efi/efivars') else "BIOS"
     
     try:
         lsblk_out = subprocess.check_output('lsblk -Jno NAME,SIZE,TYPE', shell=True)
         telemetry['hardware'] = json.loads(lsblk_out.decode('utf-8'))
-    except Exception as e:
-        logging.error(f"Failed to fetch disk telemetry: {e}")
-        
-    logging.debug(f"Telemetry payload generated: {telemetry}")
+    except: pass
     return telemetry
 
 def run_archinstall():
@@ -87,11 +86,8 @@ def run_archinstall():
     install_state = {"percentage": 10, "message": "Initializing official Archinstall engine...", "status": "running"}
     
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
-    logging.info(f"Executing command: {' '.join(cmd)}")
-    
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
-    # We append archinstall output directly into our master log
     with open(LOG_FILE, 'a') as master_log:
         for line in process.stdout:
             master_log.write(f"[ARCHINSTALL] {line}")
@@ -115,15 +111,12 @@ def run_archinstall():
                 
     process.wait()
     if process.returncode == 0:
-        logging.info("Archinstall completed successfully.")
         install_state = {"percentage": 100, "message": "Build Successful! System ready for reboot.", "status": "completed"}
     else:
-        logging.error(f"Archinstall failed with exit code {process.returncode}.")
         install_state = {"percentage": 99, "message": f"Archinstall halted with exit code {process.returncode}. Check logs.", "status": "error"}
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Redirect standard HTTP access logs to our logging framework
         logging.info(f"HTTP Req: {format%args}")
 
     def end_headers(self):
@@ -141,28 +134,23 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         if parsed_path == '/':
             self.path = '/index.html'
             return http.server.SimpleHTTPRequestHandler.do_GET(self)
-        
         elif parsed_path == '/api/status':
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(get_system_telemetry()).encode('utf-8'))
-
         elif parsed_path == '/api/progress':
             self.send_response(200)
             self.send_header('Content-type', 'text/event-stream')
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
-            
             try:
                 while True:
                     self.wfile.write(f"data: {json.dumps(install_state)}\n\n".encode('utf-8'))
                     self.wfile.flush()
-                    if install_state["status"] in ["completed", "error"]:
-                        break
+                    if install_state["status"] in ["completed", "error"]: break
                     time.sleep(1)
-            except Exception as e: 
-                logging.debug("Client disconnected from progress stream.")
+            except: pass
         else:
             return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
@@ -171,28 +159,24 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         if parsed_path == '/api/submit':
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
-            logging.info("Received configuration payload from client.")
-            
-            with open(CONFIG_PATH, 'w') as f:
-                json.dump(post_data.get('config', {}), f, indent=4)
-            with open(CREDS_PATH, 'w') as f:
-                json.dump(post_data.get('creds', {}), f, indent=4)
-
+            with open(CONFIG_PATH, 'w') as f: json.dump(post_data.get('config', {}), f, indent=4)
+            with open(CREDS_PATH, 'w') as f: json.dump(post_data.get('creds', {}), f, indent=4)
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
-            
             threading.Thread(target=run_archinstall).start()
-            
         elif parsed_path == '/api/reboot':
-            logging.info("Received remote reboot command. Executing...")
             self.send_response(200)
             self.end_headers()
             os.system('umount -R /mnt && reboot')
 
+# LAYER 2 DEFENSE: Force Kernel to reuse TIME_WAIT ports
+class ReuseServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+
 logging.info(f"Starting Python HTTP API Server on port {PORT}...")
-with socketserver.ThreadingTCPServer(("", PORT), APIHandler) as httpd:
+with ReuseServer(("", PORT), APIHandler) as httpd:
     httpd.serve_forever()
 EOF
 
@@ -252,33 +236,22 @@ cat << 'EOF' > index.html
                 <form id="wizard-form" class="space-y-6">
                     
                     <div id="step-1" class="wizard-step block">
-                        <div class="border border-gray-300 rounded-lg overflow-hidden mb-6 h-48 custom-scrollbar overflow-y-auto" id="disk-list">
-                            </div>
+                        <div class="border border-gray-300 rounded-lg overflow-hidden mb-6 h-48 custom-scrollbar overflow-y-auto" id="disk-list"></div>
 
                         <div class="flex items-center justify-between gap-4 mb-4">
                             <div class="w-1/2">
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Select filesystem:</label>
-                                <div class="relative">
-                                    <select id="fs" class="w-full appearance-none border border-gray-300 rounded-md py-2.5 px-4 text-sm text-gray-700 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white shadow-sm transition-all cursor-pointer">
-                                        <option value="ext4">Ext4 (Standard)</option>
-                                        <option value="btrfs">Btrfs (Modern)</option>
-                                    </select>
-                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </div>
-                                </div>
+                                <select id="fs" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
+                                    <option value="ext4">Ext4 (Standard)</option>
+                                    <option value="btrfs">Btrfs (Modern)</option>
+                                </select>
                             </div>
                             <div class="w-1/2">
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Bootloader:</label>
-                                <div class="relative">
-                                    <select id="bootloader" class="w-full appearance-none border border-gray-300 rounded-md py-2.5 px-4 text-sm text-gray-700 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-white shadow-sm transition-all cursor-pointer">
-                                        <option value="systemd-boot">Systemd-boot</option>
-                                        <option value="grub-install">GRUB 2</option>
-                                    </select>
-                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </div>
-                                </div>
+                                <select id="bootloader" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
+                                    <option value="systemd-boot">Systemd-boot</option>
+                                    <option value="grub-install">GRUB 2</option>
+                                </select>
                             </div>
                         </div>
 
@@ -319,27 +292,21 @@ cat << 'EOF' > index.html
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Computer Hostname</label>
-                                <input type="text" id="hostname" value="arch-system" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm text-gray-800 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 shadow-sm transition-all">
+                                <input type="text" id="hostname" value="arch-system" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Timezone</label>
-                                <input type="text" id="timezone" value="Africa/Cairo" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm text-gray-800 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 shadow-sm transition-all">
+                                <input type="text" id="timezone" value="Africa/Cairo" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500">
                             </div>
                         </div>
 
                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 mt-4">
                             <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">User Accounts</h4>
                             <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <input type="text" id="username" placeholder="Username" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500 shadow-sm">
-                                </div>
-                                <div>
-                                    <input type="password" id="password" placeholder="Password" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500 shadow-sm">
-                                </div>
+                                <div><input type="text" id="username" placeholder="Username" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500"></div>
+                                <div><input type="password" id="password" placeholder="Password" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500"></div>
                             </div>
-                            <div>
-                                <input type="password" id="root-password" placeholder="Root Password (Administrator)" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-red-400 shadow-sm">
-                            </div>
+                            <div><input type="password" id="root-password" placeholder="Root Password (Administrator)" class="w-full border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-red-400"></div>
                         </div>
                     </div>
 
@@ -357,33 +324,23 @@ cat << 'EOF' > index.html
                                 <div id="progress-bar-fill" class="bg-orange-500 h-full rounded-full w-0 transition-all duration-500 ease-out"></div>
                             </div>
 
-                            <button type="button" id="btn-reboot" class="hidden w-full bg-gray-900 hover:bg-black text-white font-medium py-3 rounded-lg text-sm transition-colors shadow-md">
-                                Restart Now
-                            </button>
+                            <button type="button" id="btn-reboot" class="hidden w-full bg-gray-900 hover:bg-black text-white font-medium py-3 rounded-lg text-sm transition-colors">Restart Now</button>
                         </div>
                     </div>
                 </form>
             </div>
 
             <div id="nav-footer" class="px-10 py-5 bg-gray-50 border-t border-gray-200 flex justify-between items-center rounded-br-2xl">
-                <button type="button" id="btn-back" class="text-gray-500 hover:text-gray-800 font-medium text-sm transition-colors hidden">Back</button>
-                <button type="button" id="btn-next" class="ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-gray-200">Continue</button>
+                <button type="button" id="btn-back" class="text-gray-500 hover:text-gray-800 font-medium text-sm hidden">Back</button>
+                <button type="button" id="btn-next" class="ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm">Continue</button>
             </div>
         </div>
     </div>
 
     <script>
-        let currentStep = 1;
-        const totalSteps = 4;
-        let selectedDiskVal = "";
-        let selectedDesktopVal = "awesome";
-
-        const stepTitles = [
-            "Select your target drive",
-            "Select your environment",
-            "Set identity and credentials",
-            "Installing system"
-        ];
+        let currentStep = 1; const totalSteps = 4;
+        let selectedDiskVal = ""; let selectedDesktopVal = "awesome";
+        const stepTitles = ["Select your target drive", "Select your environment", "Set identity and credentials", "Installing system"];
         
         fetch('/api/status').then(r => r.json()).then(data => {
             document.getElementById('target-cpu').innerText = `${data.cpu} | ${data.boot_mode}`;
@@ -393,13 +350,7 @@ cat << 'EOF' > index.html
                 if(dev.type === 'disk') {
                     const extraClasses = isFirst ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-transparent hover:bg-gray-50';
                     if(isFirst) selectedDiskVal = `/dev/${dev.name}`;
-                    
-                    diskList.innerHTML += `
-                        <div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" 
-                             onclick="selectDisk('/dev/${dev.name}', this)">
-                            /dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${dev.size}</span>
-                        </div>
-                    `;
+                    diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${dev.size}</span></div>`;
                     isFirst = false;
                 }
             });
@@ -407,17 +358,13 @@ cat << 'EOF' > index.html
 
         function selectDisk(val, el) {
             selectedDiskVal = val;
-            document.querySelectorAll('.disk-item').forEach(i => {
-                i.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50";
-            });
+            document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50");
             el.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-orange-600 bg-orange-50/50 border-orange-500";
         }
 
         function selectDesktop(val, el) {
             selectedDesktopVal = val;
-            document.querySelectorAll('.desktop-item').forEach(i => {
-                i.className = "desktop-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50";
-            });
+            document.querySelectorAll('.desktop-item').forEach(i => i.className = "desktop-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50");
             el.className = "desktop-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-orange-600 bg-orange-50/50 border-orange-500";
         }
 
@@ -444,15 +391,14 @@ cat << 'EOF' > index.html
             document.getElementById('step-indicator').innerText = `Step ${currentStep} of 3`;
             document.getElementById('step-title').innerText = stepTitles[currentStep - 1];
             document.getElementById('btn-back').style.display = (currentStep > 1 && currentStep < 4) ? 'block' : 'none';
-            
             if (currentStep === 3) {
                 document.getElementById('btn-next').innerText = "Install Now";
-                document.getElementById('btn-next').className = "ml-auto bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-6 rounded-md text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-300 border border-transparent";
+                document.getElementById('btn-next').className = "ml-auto bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-6 rounded-md text-sm border border-transparent";
             } else if (currentStep === 4) {
                 document.getElementById('nav-footer').style.display = 'none';
             } else {
                 document.getElementById('btn-next').innerText = "Continue";
-                document.getElementById('btn-next').className = "ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-gray-200";
+                document.getElementById('btn-next').className = "ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded-md text-sm";
             }
         }
 
@@ -464,12 +410,10 @@ cat << 'EOF' > index.html
                 "harddrives": [selectedDiskVal],
                 "disk_config": {
                     "config_type": "default_layout",
-                    "device_modifications": [
-                        { "device": selectedDiskVal, "wipe": true, "partitions": [
-                            { "btrfs": [], "flags": ["boot"], "fs_type": "fat32", "mountpoint": "/boot", "size": {"unit": "MiB", "value": 512}, "start": {"unit": "MiB", "value": 1}, "status": "create", "type": "primary" },
-                            { "btrfs": [], "flags": [], "fs_type": document.getElementById('fs').value, "mountpoint": "/", "size": {"unit": "B", "value": 100}, "start": {"unit": "MiB", "value": 513}, "status": "create", "type": "primary" }
-                        ]}
-                    ]
+                    "device_modifications": [{ "device": selectedDiskVal, "wipe": true, "partitions": [
+                        { "btrfs": [], "flags": ["boot"], "fs_type": "fat32", "mountpoint": "/boot", "size": {"unit": "MiB", "value": 512}, "start": {"unit": "MiB", "value": 1}, "status": "create", "type": "primary" },
+                        { "btrfs": [], "flags": [], "fs_type": document.getElementById('fs').value, "mountpoint": "/", "size": {"unit": "B", "value": 100}, "start": {"unit": "MiB", "value": 513}, "status": "create", "type": "primary" }
+                    ]}]
                 },
                 "hostname": document.getElementById('hostname').value,
                 "kernels": [document.getElementById('kernel').value],
@@ -478,46 +422,28 @@ cat << 'EOF' > index.html
                 "swap": document.getElementById('swap').checked,
                 "timezone": document.getElementById('timezone').value
             };
-
-            if (selectedDesktopVal !== "none") {
-                configPayload["profile_config"] = { "profile": { "details": [selectedDesktopVal], "type": "desktop" } };
-            }
-
+            if (selectedDesktopVal !== "none") { configPayload["profile_config"] = { "profile": { "details": [selectedDesktopVal], "type": "desktop" } }; }
             const credsPayload = {
                 "root-password": document.getElementById('root-password').value,
-                "users": [{
-                    "username": document.getElementById('username').value,
-                    "password": document.getElementById('password').value,
-                    "sudo": true
-                }]
+                "users": [{ "username": document.getElementById('username').value, "password": document.getElementById('password').value, "sudo": true }]
             };
-
-            await fetch('/api/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ config: configPayload, creds: credsPayload })
-            });
-
+            await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             startTerminalStream();
         }
 
         function startTerminalStream() {
             const stream = new EventSource('/api/progress');
-            
             stream.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                
                 document.getElementById('progress-msg').innerText = data.message;
                 document.getElementById('progress-pct').innerText = `${data.percentage}%`;
                 document.getElementById('progress-bar-fill').style.width = `${data.percentage}%`;
-
                 if(data.status === "error") {
                     document.getElementById('progress-msg').classList.replace('text-gray-500', 'text-red-500');
                     document.getElementById('progress-bar-fill').classList.replace('bg-orange-500', 'bg-red-500');
                     document.getElementById('progress-pct').classList.replace('text-orange-500', 'text-red-500');
                     stream.close();
                 }
-
                 if(data.status === "completed") {
                     document.getElementById('btn-reboot').classList.remove('hidden');
                     stream.close();
@@ -528,7 +454,6 @@ cat << 'EOF' > index.html
         document.getElementById('btn-reboot').addEventListener('click', async () => {
             await fetch('/api/reboot', { method: 'POST' });
             document.getElementById('btn-reboot').innerText = "Rebooting System...";
-            document.getElementById('btn-reboot').classList.add('opacity-50', 'cursor-not-allowed');
         });
     </script>
 </body>
@@ -542,19 +467,21 @@ echo " [+] Spinning up the Python background logic..."
 python3 server.py &
 PYTHON_PID=$!
 
+# Ensure Python started successfully before proceeding
+if ! kill -0 $PYTHON_PID 2>/dev/null; then
+    echo " [!] ERROR: Python server failed to start. Check /tmp/archinstall-web.log"
+    exit 1
+fi
+
 echo " [+] Negotiating high-speed encrypted outbound tunnel via localhost.run..."
-echo "[BASH] Launching SSH Tunnel to localhost.run..." >> "$LOG_FILE"
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 -R 80:localhost:5000 nokey@localhost.run >> "$LOG_FILE" 2>&1 &
 SSH_PID=$!
 
 sleep 6
 
-# Parse the URL exclusively from the centralized log file
 PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.lhr\.life" "$LOG_FILE" | tail -n 1)
 LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
-if [ -z "$LOCAL_IP" ]; then
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-fi
+if [ -z "$LOCAL_IP" ]; then LOCAL_IP=$(hostname -I | awk '{print $1}'); fi
 
 if [ -z "$PUBLIC_URL" ]; then
     DISPLAY_URL="http://${LOCAL_IP}:5000"
@@ -577,10 +504,10 @@ echo ""
 echo " ⏳ Awaiting JSON compilation from your remote web session..."
 echo " 📝 Monitor detailed background logs via: tail -f /tmp/archinstall-web.log"
 
-while true; do
-    curl -s localhost:5000/api/status > /dev/null 2>&1
+# Keep script strictly alive as long as Python is running
+while kill -0 $PYTHON_PID 2>/dev/null; do
     sleep 3
-    if ! kill -0 $PYTHON_PID 2>/dev/null; then break; fi
 done
 
+echo " [!] Python service terminated. Exiting WebUI engine."
 kill $SSH_PID 2>/dev/null || true
