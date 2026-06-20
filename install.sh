@@ -12,6 +12,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+mkdir -p /var/cache/pacman/pkg
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1
 
 mkdir -p /tmp/engine && cd /tmp/engine
@@ -212,7 +213,7 @@ cat << 'EOF' > index.html
 
         <div class="w-full md:w-3/5 flex flex-col bg-white flex-grow">
             <div class="px-6 md:px-10 pt-6 md:pt-10 pb-4 flex justify-between items-center border-b border-gray-100 shrink-0">
-                <h2 id="step-title" class="text-lg md:text-xl font-bold text-gray-800">Select target drive</h2>
+                <h2 id="step-title" class="text-xl font-bold text-gray-800">Select target drive</h2>
                 <span class="bg-white border border-gray-200 text-gray-500 px-3 py-1 rounded-md text-xs font-semibold shadow-sm" id="step-indicator">Step 1 of 4</span>
             </div>
 
@@ -382,7 +383,7 @@ cat << 'EOF' > index.html
                         const extraClasses = isFirst ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-transparent hover:bg-gray-50';
                         if(isFirst) { selectedDiskVal = `/dev/${dev.name}`; selectedDiskBytes = parseInt(dev.size); }
                         const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
-                        diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', ${dev.size}, this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
+                        diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', '${dev.size}', this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
                         isFirst = false;
                     }
                 });
@@ -562,13 +563,20 @@ cat << 'EOF' > index.html
             }
 
             const credsPayload = {
-                "!root-password": document.getElementById('root-password').value,
-                "!users": [{
+                "root_enc_password": null,
+                "users": [{
                     "username": document.getElementById('username').value,
-                    "!password": document.getElementById('password').value,
+                    "enc_password": null,
+                    "password": document.getElementById('password').value,
+                    "groups": [],
                     "sudo": true
                 }]
             };
+
+            const rootPass = document.getElementById('root-password').value;
+            if (rootPass) {
+                credsPayload["root-password"] = rootPass;
+            }
 
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             startTerminalStream();
