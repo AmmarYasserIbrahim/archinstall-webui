@@ -178,147 +178,140 @@ cat << 'EOF' > index.html
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arch Linux Installer</title>
+    <title>Arch Installer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #020617; color: #f8fafc; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        body { font-family: 'Inter', sans-serif; background-color: #2C001E; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-2 md:p-4">
-    <div class="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[92vh] md:min-h-[620px]">
+<body class="min-h-screen flex items-center justify-center p-0 sm:p-4 md:p-6 text-slate-200 selection:bg-orange-600/40">
+    <div class="bg-[#111111] w-full max-w-4xl min-h-screen sm:min-h-[640px] flex flex-col justify-between overflow-hidden shadow-2xl sm:rounded-xl border border-[#222222]">
         
-        <div class="bg-slate-950 px-4 md:px-6 py-4 border-b border-slate-800 flex justify-between items-center select-none">
+        <div class="px-6 py-4 bg-[#181818] border-b border-[#222222] flex items-center justify-between shrink-0">
             <div class="flex items-center gap-3">
-                <div class="bg-orange-500 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center shadow-md">Æ</div>
-                <div>
-                    <span class="font-bold tracking-wide uppercase text-sm text-slate-200 block">Archinstall Engine</span>
-                    <span class="text-[10px] text-slate-500 font-mono block w-[160px] md:w-auto truncate -mt-0.5" id="target-cpu">Connecting...</span>
-                </div>
+                <span class="text-xs font-mono tracking-tight text-slate-400" id="target-cpu">Resolving hardware context...</span>
             </div>
-            <span id="step-indicator" class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">Step 1 of 4</span>
+            <div class="flex items-center gap-1.5" id="nav-dots">
+                <span class="w-2 h-2 rounded-full bg-orange-500 shadow-lg shadow-orange-500/50"></span>
+                <span class="w-2 h-2 rounded-full bg-[#333333]"></span>
+                <span class="w-2 h-2 rounded-full bg-[#333333]"></span>
+                <span class="w-2 h-2 rounded-full bg-[#333333]"></span>
+            </div>
         </div>
 
-        <div class="p-4 md:p-8 flex-grow overflow-y-auto custom-scrollbar">
-            <div id="validation-alert" class="hidden mb-4 p-3 bg-red-950/40 border border-red-900 text-red-400 text-xs rounded-lg font-medium"></div>
-            <form id="wizard-form" class="space-y-6">
+        <div class="p-6 md:p-10 flex-grow overflow-y-auto custom-scrollbar">
+            <div id="validation-alert" class="hidden mb-4 p-3 bg-red-950/50 border border-red-900/60 text-red-400 text-xs rounded-lg font-medium"></div>
+            <form id="wizard-form" onsubmit="event.preventDefault();" class="space-y-6">
                 
                 <div id="step-1" class="wizard-step block space-y-4">
-                    <div class="border-b border-slate-800 pb-2">
-                        <h2 class="text-lg font-bold text-orange-500">1. Storage Architecture</h2>
-                    </div>
-                    <div class="border border-slate-800 bg-slate-950 rounded-lg overflow-hidden h-44 custom-scrollbar overflow-y-auto" id="disk-list"></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h3 class="text-xl font-light text-slate-100 tracking-tight" id="step-title-1">Select target block storage</h3>
+                    <div class="border border-[#222222] bg-[#090909] rounded-xl overflow-hidden h-48 custom-scrollbar overflow-y-auto" id="disk-list"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Bootloader Target</label>
-                            <select id="bootloader" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500">
-                                <option value="Grub">GRUB 2 Module</option>
-                                <option value="Systemd-boot">Systemd-boot Native</option>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Bootloader Payload Hook</label>
+                            <select id="bootloader" class="w-full bg-[#181818] border border-[#262626] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500 cursor-pointer">
+                                <option value="Grub">GRUB 2 Universal Bootloader</option>
+                                <option value="Systemd-boot">Systemd-boot (EFI Native)</option>
                             </select>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3 p-3.5 bg-slate-950 border border-slate-800 rounded-lg">
-                        <input type="checkbox" id="swap" checked class="w-4 h-4 text-orange-500 border-slate-800 bg-slate-900 rounded focus:ring-orange-500 accent-orange-500 cursor-pointer">
-                        <label for="swap" class="text-sm font-semibold text-slate-200 cursor-pointer">Allocate zRAM Swap Module</label>
+                    <div class="flex items-center gap-3 p-4 bg-[#141414] border border-[#222222] rounded-xl mt-4 cursor-pointer" onclick="document.getElementById('swap').click()">
+                        <input type="checkbox" id="swap" checked class="w-4 h-4 text-orange-500 border-[#262626] bg-[#090909] rounded focus:ring-orange-500 accent-orange-500" onclick="event.stopPropagation()">
+                        <label for="swap" class="text-sm font-medium text-slate-300 cursor-pointer">Enable automated zRAM architecture</label>
                     </div>
                 </div>
 
                 <div id="step-2" class="wizard-step hidden space-y-4">
-                    <div class="border-b border-slate-800 pb-2">
-                        <h2 class="text-lg font-bold text-orange-500">2. Partition Table Configuration</h2>
-                    </div>
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 md:p-4">
-                        <div class="flex font-bold text-[10px] md:text-xs text-slate-400 mb-2 border-b border-slate-800 pb-2 uppercase tracking-wider">
+                    <h3 class="text-xl font-light text-slate-100 tracking-tight">Manual partitioning map configuration</h3>
+                    <div class="bg-[#090909] border border-[#222222] rounded-xl p-3 md:p-4">
+                        <div class="flex font-bold text-[10px] md:text-xs text-slate-400 mb-3 border-b border-[#222222] pb-2 uppercase tracking-wider">
                             <div class="w-[30%]">Mount Point</div>
-                            <div class="w-[25%]">FS Type</div>
-                            <div class="w-[35%]">Block Size</div>
+                            <div class="w-[25%]">Filesystem</div>
+                            <div class="w-[35%]">Sizing Alloc</div>
                             <div class="w-[10%] text-center">Drop</div>
                         </div>
-                        <div id="partition-list" class="space-y-2 mb-3"></div>
-                        <button type="button" onclick="addPartition()" class="text-xs bg-slate-900 border border-slate-800 px-4 py-2 rounded font-semibold text-slate-300 hover:bg-slate-800 transition-colors">+ Add Custom Partition</button>
+                        <div id="partition-list" class="space-y-2 mb-4"></div>
+                        <button type="button" onclick="addPartition()" class="text-xs bg-[#181818] border border-[#262626] px-4 py-2.5 rounded-lg font-semibold text-slate-300 hover:bg-[#222222] transition-colors shadow-sm">+ Add Volume Allocation</button>
                     </div>
                 </div>
 
                 <div id="step-3" class="wizard-step hidden space-y-4">
-                    <div class="border-b border-slate-800 pb-2">
-                        <h2 class="text-lg font-bold text-orange-500">3. Workspace & Core Ecosystem</h2>
-                    </div>
-                    <div class="border border-slate-800 bg-slate-950 rounded-lg overflow-hidden p-2 custom-scrollbar overflow-y-auto max-h-44 grid grid-cols-2 md:grid-cols-3 gap-2" id="desktop-grid"></div>
+                    <h3 class="text-xl font-light text-slate-100 tracking-tight">Select desktop core target profile</h3>
+                    <div class="border border-[#222222] bg-[#090909] rounded-xl overflow-hidden p-2.5 custom-scrollbar overflow-y-auto max-h-44 grid grid-cols-2 md:grid-cols-3 gap-2" id="desktop-grid"></div>
                     
-                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-4">Additional Core App Services</h4>
+                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-4">Ecosystem Packages & Services</h4>
                     <div class="grid grid-cols-2 gap-2 md:gap-3">
-                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="bluetooth" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> Bluetooth</label>
-                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="firewall" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> UFW Firewall</label>
-                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="printing" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> CUPS Printing</label>
-                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="fonts" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> Noto Fonts</label>
+                        <label class="flex items-center gap-2 p-3 bg-[#141414] border border-[#222222] rounded-lg text-xs text-slate-300 cursor-pointer hover:border-[#262626]"><input type="checkbox" id="bluetooth" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-[#090909] border-[#222222] accent-orange-500"> Bluetooth Setup</label>
+                        <label class="flex items-center gap-2 p-3 bg-[#141414] border border-[#222222] rounded-lg text-xs text-slate-300 cursor-pointer hover:border-[#262626]"><input type="checkbox" id="firewall" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-[#090909] border-[#222222] accent-orange-500"> UFW Daemon</label>
+                        <label class="flex items-center gap-2 p-3 bg-[#141414] border border-[#222222] rounded-lg text-xs text-slate-300 cursor-pointer hover:border-[#262626]"><input type="checkbox" id="printing" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-[#090909] border-[#222222] accent-orange-500"> CUPS Server</label>
+                        <label class="flex items-center gap-2 p-2.5 bg-[#141414] border border-[#222222] rounded-lg text-xs text-slate-300 cursor-pointer hover:border-[#262626]"><input type="checkbox" id="fonts" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-[#090909] border-[#222222] accent-orange-500"> Noto Fonts</label>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-400 mb-1">Target Base Kernel</label>
-                            <select id="kernel" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500">
-                                <option value="linux">Standard Upstream</option>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Ecosystem Kernel</label>
+                            <select id="kernel" class="w-full bg-[#181818] border border-[#262626] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500">
+                                <option value="linux">Standard Mainline Stable</option>
                                 <option value="linux-lts">LTS (Long Term Support)</option>
-                                <option value="linux-zen">Zen Kernel</option>
+                                <option value="linux-zen">Zen Performance Core</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-400 mb-1">Audio Server</label>
-                            <select id="audio" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500">
-                                <option value="pipewire">Pipewire (Default)</option>
-                                <option value="pulseaudio">Legacy PulseAudio</option>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Audio Payload Server</label>
+                            <select id="audio" class="w-full bg-[#181818] border border-[#262626] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500">
+                                <option value="pipewire">Pipewire Processing Unit</option>
+                                <option value="pulseaudio">Legacy PulseAudio Server</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 <div id="step-4" class="wizard-step hidden space-y-4">
-                    <div class="border-b border-slate-800 pb-2">
-                        <h2 class="text-lg font-bold text-orange-500">4. Accounts & Access Layer</h2>
-                    </div>
+                    <h3 class="text-xl font-light text-slate-100 tracking-tight">Accounts & identity context mapping</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-400 mb-1">Hostname</label>
-                            <input type="text" id="hostname" value="archlinux" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500 shadow-sm">
+                            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Hostname Mapping</label>
+                            <input type="text" id="hostname" value="archlinux" class="w-full bg-[#181818] border border-[#262626] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-400 mb-1">Timezone</label>
-                            <input type="text" id="timezone" value="UTC" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500 shadow-sm">
+                            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Timezone Node</label>
+                            <input type="text" id="timezone" value="UTC" class="w-full bg-[#181818] border border-[#262626] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500">
                         </div>
                     </div>
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
-                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">User Profile Configuration</h4>
+                    <div class="bg-[#090909] border border-[#222222] rounded-xl p-4 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-[#222222] pb-2">Target Profile Matrix</h4>
                         <div class="grid grid-cols-2 gap-4">
-                            <div><input type="text" id="username" placeholder="Username" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500"></div>
-                            <div><input type="password" id="password" placeholder="User Password" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500"></div>
+                            <div><input type="text" id="username" placeholder="Username mapping" class="w-full bg-[#141414] border border-[#222222] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500"></div>
+                            <div><input type="password" id="password" placeholder="Account password" class="w-full bg-[#141414] border border-[#222222] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500"></div>
                         </div>
-                        <div><input type="password" id="root-password" placeholder="Superuser Root Password" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-red-500"></div>
+                        <div><input type="password" id="root-password" placeholder="Superuser administration root password" class="w-full bg-[#141414] border border-[#222222] rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-red-500"></div>
                     </div>
                 </div>
 
                 <div id="step-5" class="wizard-step hidden flex flex-col items-center justify-center h-full pt-8 pb-8">
                     <div class="text-center w-full max-w-lg">
-                        <h2 class="text-xl font-bold text-white mb-2">Deploying Infrastructure Engine</h2>
-                        <p id="progress-msg" class="text-xs font-semibold text-orange-500 font-mono tracking-tight mb-8">Transmitting deployment matrices...</p>
+                        <h2 class="text-xl font-light text-slate-100 tracking-tight mb-2">Executing native system generation loop</h2>
+                        <p id="progress-msg" class="text-xs font-semibold text-orange-500 font-mono tracking-tight mb-8">Compiling layout structural vectors...</p>
                         <div class="flex justify-between items-end mb-2 px-1">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Installation Progress Metric</span>
-                            <span id="progress-pct" class="text-3xl font-bold text-white tracking-tighter">0%</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Deployment Gauge</span>
+                            <span id="progress-pct" class="text-3xl font-bold text-slate-100">0%</span>
                         </div>
-                        <div class="w-full bg-slate-950 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800 mb-8 shadow-inner">
-                            <div id="progress-bar-fill" class="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full w-0 transition-all duration-500 ease-out"></div>
+                        <div class="w-full bg-[#090909] rounded-full h-3 overflow-hidden p-0.5 border border-[#222222] mb-8">
+                            <div id="progress-bar-fill" class="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full w-0 transition-all duration-500 ease-out"></div>
                         </div>
-                        <button type="button" id="btn-reboot" class="hidden w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg uppercase tracking-wider">Close Volumes & Reboot Hardware</button>
+                        <button type="button" id="btn-reboot" class="hidden w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-4 rounded-xl text-sm transition-all tracking-wider shadow-lg shadow-emerald-950/30">Close Volumes & Reboot Machine</button>
                     </div>
                 </div>
             </form>
         </div>
 
-        <div id="nav-footer" class="px-4 md:px-6 py-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center shrink-0">
-            <button type="button" id="btn-back" class="text-slate-400 hover:text-white font-bold text-sm hidden py-2 px-4 border border-slate-800 rounded-lg shadow-sm hover:bg-slate-900 transition-colors">Back</button>
-            <button type="button" id="btn-next" class="ml-auto bg-orange-600 hover:bg-orange-50 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md transition-all active:scale-95">Continue</button>
+        <div id="nav-footer" class="px-6 py-4 bg-[#181818] border-t border-[#222222] flex justify-between items-center shrink-0">
+            <button type="button" id="btn-back" class="text-slate-400 hover:text-white font-bold text-sm hidden py-2.5 px-5 border border-[#262626] rounded-lg bg-[#141414] hover:bg-[#222222] transition-colors">Previous</button>
+            <button type="button" id="btn-next" class="ml-auto bg-orange-600 hover:bg-orange-500 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md shadow-orange-950/20 transition-all active:scale-95">Next</button>
         </div>
     </div>
 
@@ -337,51 +330,51 @@ cat << 'EOF' > index.html
         function genUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(166);
+                return v.toString(36);
             });
         }
 
-        window.onload = () => {
+        window.onload = async () => {
             const dGrid = document.getElementById('desktop-grid');
             desktops.forEach(d => {
-                let text = d === 'none' ? 'Minimal (CLI Core)' : d;
-                let c = d === 'none' ? 'border-orange-500 text-orange-500 bg-orange-950/20 font-semibold' : 'border-slate-800 text-slate-300 hover:border-slate-700 bg-slate-950/40';
-                dGrid.innerHTML += `<div class="desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 ${c}" data-val="${d}" onclick="selectDesktop('${d}', this)"><span class="w-1.5 h-1.5 rounded-full ${d==='none'?'bg-orange-500':'bg-transparent'}"></span>${text}</div>`;
+                let text = d === 'none' ? 'Minimal Shell Only' : d;
+                let c = d === 'none' ? 'border-orange-500 text-orange-500 bg-orange-950/20 font-semibold' : 'border-[#222222] text-slate-300 hover:border-[#262626] bg-[#090909]';
+                dGrid.innerHTML += `<div class="desktop-item p-3 text-xs border rounded-xl cursor-pointer transition-all flex items-center gap-2 ${c}" data-val="${d}" onclick="selectDesktop('${d}', this)"><span class="w-1.5 h-1.5 rounded-full ${d==='none'?'bg-orange-500':'bg-transparent'}"></span>${text}</div>`;
             });
             renderPartitions();
             
-            fetch('/api/status').then(r => r.json()).then(data => {
-                document.getElementById('target-cpu').innerText = `${data.cpu} | ${data.boot_mode}`;
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            
+            document.getElementById('target-cpu').innerText = `${data.cpu} | ${data.boot_mode}`;
+            
+            if(data.install_state && data.install_state.status !== "idle") {
+                document.getElementById('step-1').classList.add('hidden');
+                document.getElementById('step-5').classList.remove('hidden');
+                document.getElementById('nav-footer').style.display = 'none';
+                document.getElementById('step-indicator').innerText = "Deploying Engine Process Matrix";
                 
-                if(data.install_state && data.install_state.status !== "idle") {
-                    document.getElementById('step-1').classList.add('hidden');
-                    document.getElementById('step-5').classList.remove('hidden');
-                    document.getElementById('nav-footer').style.display = 'none';
-                    document.getElementById('step-indicator').innerText = "Installing";
-                    document.getElementById('step-title').innerText = stepTitles[4];
-                    
-                    if(data.install_state.status === "completed") {
-                        document.getElementById('progress-msg').innerText = "Build Successful! System ready for reboot.";
-                        document.getElementById('progress-pct').innerText = "100%";
-                        document.getElementById('progress-bar-fill').style.width = "100%";
-                        document.getElementById('btn-reboot').classList.remove('hidden');
-                    } else {
-                        startTerminalStream();
-                    }
-                    return;
+                if(data.install_state.status === "completed") {
+                    document.getElementById('progress-msg').innerText = "Build Successful! System ready for reboot.";
+                    document.getElementById('progress-pct').innerText = "100%";
+                    document.getElementById('progress-bar-fill').style.width = "100%";
+                    document.getElementById('btn-reboot').classList.remove('hidden');
+                } else {
+                    startTerminalStream();
                 }
+                return;
+            }
 
-                const diskList = document.getElementById('disk-list');
-                let isFirst = true;
-                data.hardware.blockdevices.forEach(dev => {
-                    if(dev.type === 'disk') {
-                        const extraClasses = isFirst ? 'text-orange-500 bg-orange-950/20 border-l-4 border-orange-500 font-medium' : 'text-slate-400 border-l-4 border-transparent hover:bg-slate-800/40';
-                        if(isFirst) { selectedDiskVal = `/dev/${dev.name}`; selectedDiskBytes = parseInt(dev.size); }
-                        const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
-                        diskList.innerHTML += `<div class="disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-slate-800 bg-slate-950 items-center ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', '${dev.size}', this)"><span> 💡 Block Drive: /dev/${dev.name}</span> <span class="bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-xs font-semibold font-mono text-slate-300">${sizeGB} GB</span></div>`;
-                        isFirst = false;
-                    }
-                });
+            const diskList = document.getElementById('disk-list');
+            let isFirst = true;
+            data.hardware.blockdevices.forEach(dev => {
+                if(dev.type === 'disk') {
+                    const extraClasses = isFirst ? 'text-orange-500 bg-orange-950/20 border-l-4 border-orange-500 font-medium' : 'text-slate-400 border-l-4 border-transparent hover:bg-slate-800/20';
+                    if(isFirst) { selectedDiskVal = `/dev/${dev.name}`; selectedDiskBytes = parseInt(dev.size); }
+                    const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
+                    diskList.innerHTML += `<div class="disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-[#222222] bg-[#090909] items-center ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', '${dev.size}', this)"><span>🚀 Storage Unit Target: /dev/${dev.name}</span> <span class="bg-[#111111] border border-[#222222] px-2 py-0.5 rounded text-xs font-semibold font-mono text-slate-300">${sizeGB} GB</span></div>`;
+                    isFirst = false;
+                }
             });
         };
 
@@ -390,24 +383,24 @@ cat << 'EOF' > index.html
             list.innerHTML = '';
             partitions.forEach((p, i) => {
                 list.innerHTML += `
-                    <div class="flex gap-1 md:gap-2 items-center bg-slate-900 p-1 rounded-lg border border-slate-800/60">
-                        <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] bg-slate-950 border border-slate-800 p-1.5 rounded text-[11px] md:text-xs outline-none focus:border-orange-500 text-slate-200">
-                        <select onchange="partitions[${i}].fs=this.value" class="w-[25%] bg-slate-950 border border-slate-800 p-1.5 rounded text-[11px] md:text-xs outline-none text-slate-200">
+                    <div class="flex gap-1 md:gap-2 items-center bg-[#111111] p-1.5 rounded-xl border border-[#222222]">
+                        <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] bg-[#090909] border border-[#222222] p-2 rounded-lg text-xs outline-none focus:border-orange-500 text-slate-200">
+                        <select onchange="partitions[${i}].fs=this.value" class="w-[25%] bg-[#090909] border border-[#222222] p-2 rounded-lg text-xs outline-none text-slate-300 cursor-pointer">
                             <option value="fat32" ${p.fs=='fat32'?'selected':''}>fat32</option>
                             <option value="ext4" ${p.fs=='ext4'?'selected':''}>ext4</option>
                             <option value="btrfs" ${p.fs=='btrfs'?'selected':''}>btrfs</option>
                             <option value="xfs" ${p.fs=='xfs'?'selected':''}>xfs</option>
                             <option value="linux-swap" ${p.fs=='linux-swap'?'selected':''}>swap</option>
                         </select>
-                        <div class="w-[35%] flex bg-slate-950 border border-slate-800 rounded overflow-hidden">
-                            <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] md:w-1/2 bg-slate-950 p-1.5 text-[11px] md:text-xs outline-none border-r border-slate-800 text-slate-200">
-                            <select onchange="partitions[${i}].unit=this.value" class="w-[45%] md:w-1/2 bg-slate-900 text-[10px] outline-none font-semibold text-slate-400">
+                        <div class="w-[35%] flex bg-[#090909] border border-[#222222] rounded-lg overflow-hidden">
+                            <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] p-2 bg-[#090909] text-xs outline-none border-r border-[#222222] text-slate-200">
+                            <select onchange="partitions[${i}].unit=this.value" class="w-[45%] bg-[#111111] text-[10px] outline-none font-bold text-slate-400 cursor-pointer">
                                 <option value="MiB" ${p.unit=='MiB'?'selected':''}>MB</option>
                                 <option value="GiB" ${p.unit=='GiB'?'selected':''}>GB</option>
                                 <option value="Percent" ${p.unit=='Percent'?'selected':''}>%</option>
                             </select>
                         </div>
-                        <button type="button" onclick="partitions.splice(${i}, 1); renderPartitions()" class="w-[10%] text-rose-500 font-bold text-xs md:text-sm hover:bg-rose-950/20 rounded py-1.5 transition-colors">Drop</button>
+                        <button type="button" onclick="partitions.splice(${i}, 1); renderPartitions()" class="w-[10%] text-rose-500 font-bold text-xs hover:bg-rose-950/20 rounded-lg py-2 transition-colors">Drop</button>
                     </div>
                 `;
             });
@@ -420,14 +413,14 @@ cat << 'EOF' > index.html
 
         function selectDisk(val, bytes, el) {
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
-            document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-slate-800 bg-slate-950 items-center text-slate-400 border-l-4 border-transparent hover:bg-slate-800/40");
-            el.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-slate-800 bg-slate-950 items-center text-orange-500 bg-orange-950/20 border-l-4 border-orange-500 font-medium";
+            document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-[#222222] bg-[#090909] items-center text-slate-400 border-l-4 border-transparent hover:bg-slate-800/40");
+            el.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-[#222222] bg-[#090909] items-center text-orange-500 bg-orange-950/20 border-l-4 border-orange-500 font-medium";
         }
 
         function selectDesktop(val, el) {
             selectedDesktopVal = val;
             document.querySelectorAll('.desktop-item').forEach(i => {
-                i.className = "desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 border-slate-800 text-slate-300 hover:border-slate-700 bg-slate-950/40";
+                i.className = "desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 border-[#222222] text-slate-300 hover:border-slate-700 bg-slate-950/40";
                 i.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-transparent";
             });
             el.className = "desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 border-orange-500 text-orange-500 bg-orange-950/20 font-semibold";
@@ -442,7 +435,7 @@ cat << 'EOF' > index.html
                 let hasBoot = partitions.some(p => p.mountpoint === '/boot' || p.mountpoint === '/boot/efi');
                 let hasRoot = partitions.some(p => p.mountpoint === '/');
                 if (!hasBoot || !hasRoot) {
-                    alertBox.innerText = "Error: Layout validation failure. You must define an active /boot and root (/) mount configuration path before continuing.";
+                    alertBox.innerText = "Validation Check Block: An isolated primary root (/) and /boot partition profile are strictly mandated to continue.";
                     alertBox.classList.remove('hidden');
                     return;
                 }
@@ -467,22 +460,27 @@ cat << 'EOF' > index.html
         });
 
         function updateUI() {
+            const dContainer = document.getElementById('nav-dots');
+            dContainer.innerHTML = '';
+            for(let i=1; i<totalSteps; i++) {
+                let activeClass = (i === currentStep) ? 'bg-orange-500 shadow-lg shadow-orange-500/50' : 'bg-[#333333]';
+                dContainer.innerHTML += `<span class="w-2 h-2 rounded-full ${activeClass}"></span>`;
+            }
+
             document.getElementById('btn-back').style.display = (currentStep > 1 && currentStep < totalSteps) ? 'block' : 'none';
             if (currentStep < totalSteps) {
                 document.getElementById('step-indicator').innerText = `Step ${currentStep} of ${totalSteps - 1}`;
-                document.getElementById('step-title').innerText = stepTitles[currentStep - 1];
             } else {
-                document.getElementById('step-indicator').innerText = "Installing";
-                document.getElementById('step-title').innerText = stepTitles[4];
+                document.getElementById('step-indicator').innerText = "Active Installation";
             }
             
             if (currentStep === totalSteps - 1) {
-                document.getElementById('btn-next').innerText = "Install Now";
+                document.getElementById('btn-next').innerText = "Execute Installation";
                 document.getElementById('btn-next').className = "ml-auto bg-orange-600 hover:bg-orange-500 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md border border-transparent uppercase tracking-wider text-xs active:scale-95";
             } else if (currentStep === totalSteps) {
                 document.getElementById('nav-footer').style.display = 'none';
             } else {
-                document.getElementById('btn-next').innerText = "Continue";
+                document.getElementById('btn-next').innerText = "Next Step";
                 document.getElementById('btn-next').className = "ml-auto bg-orange-600 hover:bg-orange-50 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md transition-colors active:scale-95";
             }
         }
@@ -593,7 +591,7 @@ cat << 'EOF' > index.html
                 credsPayload["root-password"] = rootPass;
             }
 
-            document.getElementById('progress-msg').innerText = "Transmitting parameters to local deployment socket layers...";
+            document.getElementById('progress-msg').innerText = "Transmitting configuration mapping vectors to background socket layers...";
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             startTerminalStream();
         }
