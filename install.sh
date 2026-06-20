@@ -49,32 +49,25 @@ CREDS_PATH = '/tmp/creds.json'
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
 
 def get_system_telemetry():
-    logging.debug("GET /api/status - Gathering hardware configuration profile")
     telemetry = {"cpu": "Unknown", "boot_mode": "BIOS", "hardware": {}}
     try:
         cpu_out = subprocess.check_output('lscpu | grep "Model name:" | sed "s/Model name: *//"', shell=True)
         telemetry['cpu'] = cpu_out.decode('utf-8').strip()
-    except Exception as e:
-        logging.error(f"Telemetry CPU parsing exception: {str(e)}")
+    except: pass
     telemetry['boot_mode'] = "UEFI" if os.path.exists('/sys/firmware/efi/efivars') else "BIOS"
     try:
-        lsblk_out = subprocess.check_output('lsblk -Jno NAME,SIZE,TYPE', shell=True)
+        lsblk_out = subprocess.check_output('lsblk -b -Jno NAME,SIZE,TYPE', shell=True)
         telemetry['hardware'] = json.loads(lsblk_out.decode('utf-8'))
-    except Exception as e:
-        logging.error(f"Telemetry storage layout execution exception: {str(e)}")
-    logging.debug(f"Telemetry processing complete: {json.dumps(telemetry)}")
+    except: pass
     return telemetry
 
 def run_archinstall():
     global install_state
-    logging.info("Spawning subprocess execution worker framework")
-    
     install_state = {"percentage": 5, "message": "Synchronizing pacman mirror repositories...", "status": "running"}
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
     install_state = {"percentage": 10, "message": "Initializing official Archinstall engine...", "status": "running"}
     
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
-    logging.info(f"Target system execution string command array: {json.dumps(cmd)}")
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
     with open(LOG_FILE, 'a') as master_log:
@@ -98,7 +91,6 @@ def run_archinstall():
                 install_state = {"percentage": 100, "message": "Build Successful! System ready for reboot.", "status": "completed"}
                 
     process.wait()
-    logging.info(f"Subprocess terminated with exit code return value: {process.returncode}")
     if process.returncode == 0:
         install_state = {"percentage": 100, "message": "Build Successful! System ready for reboot.", "status": "completed"}
     else:
@@ -106,7 +98,7 @@ def run_archinstall():
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
-        logging.info(f"HTTP Req: {format%args}")
+        pass
 
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -148,24 +140,14 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         if parsed_path == '/api/submit':
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
-            
-            logging.debug("POST /api/submit - Full raw payload matrix dump received:")
-            logging.debug(json.dumps(post_data, indent=4))
-            
-            config_payload = post_data.get('config', {})
-            creds_payload = post_data.get('creds', {})
-            
-            logging.info("Writing deployment definitions payload arrays to localized configuration targets")
-            with open(CONFIG_PATH, 'w') as f: json.dump(config_payload, f, indent=4)
-            with open(CREDS_PATH, 'w') as f: json.dump(creds_payload, f, indent=4)
-            
+            with open(CONFIG_PATH, 'w') as f: json.dump(post_data.get('config', {}), f, indent=4)
+            with open(CREDS_PATH, 'w') as f: json.dump(post_data.get('creds', {}), f, indent=4)
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
             threading.Thread(target=run_archinstall).start()
         elif parsed_path == '/api/reboot':
-            logging.warning("POST /api/reboot - Local network infrastructure calling standard hardware reset execution sequence")
             self.send_response(200)
             self.end_headers()
             os.system('umount -R /mnt && reboot')
@@ -195,7 +177,7 @@ cat << 'EOF' > index.html
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 text-gray-800">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl min-h-[550px] flex overflow-hidden border border-gray-200">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl min-h-[600px] flex overflow-hidden border border-gray-200">
         <div class="w-2/5 bg-gray-50 flex flex-col items-center justify-center p-8 border-r border-gray-200 hidden md:flex relative">
             <div class="text-center absolute top-8 left-8">
                 <span class="font-bold tracking-widest uppercase text-xs text-gray-400">Arch WebUI</span>
@@ -231,14 +213,14 @@ cat << 'EOF' > index.html
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Filesystem:</label>
                                 <select id="fs" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
                                     <option value="ext4">Ext4 (Standard)</option>
-                                    <option value="btrfs">Btrfs (Modern)</option>
+                                    <option value="btrfs">Btrfs (Modern + Snapshots)</option>
                                 </select>
                             </div>
                             <div class="w-1/2">
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Bootloader:</label>
                                 <select id="bootloader" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
+                                    <option value="Grub">GRUB 2</option>
                                     <option value="Systemd-boot">Systemd-boot</option>
-                                    <option value="grub-install">GRUB 2</option>
                                 </select>
                             </div>
                         </div>
@@ -250,23 +232,34 @@ cat << 'EOF' > index.html
 
                     <div id="step-2" class="wizard-step hidden">
                         <label class="block text-xs font-semibold text-gray-500 mb-2">Desktop environment</label>
-                        <div class="border border-gray-300 rounded-lg overflow-hidden mb-6 h-48 custom-scrollbar overflow-y-auto">
+                        <div class="border border-gray-300 rounded-lg overflow-hidden mb-4 h-40 custom-scrollbar overflow-y-auto">
                             <div class="desktop-item p-3.5 text-sm text-orange-600 font-medium bg-orange-50/50 border-l-2 border-orange-500 cursor-pointer transition-colors" data-val="Awesome" onclick="selectDesktop('Awesome', this)">Awesome WM</div>
                             <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="KDE Plasma" onclick="selectDesktop('KDE Plasma', this)">KDE Plasma</div>
                             <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="GNOME" onclick="selectDesktop('GNOME', this)">GNOME</div>
+                            <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="Hyprland" onclick="selectDesktop('Hyprland', this)">Hyprland</div>
                             <div class="desktop-item p-3.5 text-sm text-gray-600 hover:bg-gray-50 border-l-2 border-transparent cursor-pointer transition-colors" data-val="none" onclick="selectDesktop('none', this)">Minimal Server (No GUI)</div>
                         </div>
+                        
+                        <label class="block text-xs font-semibold text-gray-500 mb-2 mt-4">Additional Services</label>
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="bluetooth" checked class="text-orange-500 focus:ring-orange-500 rounded"> Bluetooth Setup</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="firewall" checked class="text-orange-500 focus:ring-orange-500 rounded"> UFW Firewall</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="printing" checked class="text-orange-500 focus:ring-orange-500 rounded"> CUPS Printing</label>
+                            <label class="flex items-center gap-2 p-2 border border-gray-200 rounded text-sm text-gray-700 cursor-pointer"><input type="checkbox" id="fonts" checked class="text-orange-500 focus:ring-orange-500 rounded"> Noto/Global Fonts</label>
+                        </div>
+
                         <div class="flex items-center justify-between gap-4">
                             <div class="w-1/2">
-                                <label class="block text-xs font-semibold text-gray-500 mb-2">Kernel Payload:</label>
-                                <select id="kernel" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
-                                    <option value="linux">Standard (linux)</option>
-                                    <option value="linux-lts">LTS (linux-lts)</option>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Kernel:</label>
+                                <select id="kernel" class="w-full border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
+                                    <option value="linux">Standard</option>
+                                    <option value="linux-lts">LTS</option>
+                                    <option value="linux-zen">Zen</option>
                                 </select>
                             </div>
                             <div class="w-1/2">
-                                <label class="block text-xs font-semibold text-gray-500 mb-2">Audio Server:</label>
-                                <select id="audio" class="w-full border border-gray-300 rounded-md py-2.5 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Audio:</label>
+                                <select id="audio" class="w-full border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-700 focus:outline-none focus:border-orange-500">
                                     <option value="pipewire">Pipewire</option>
                                     <option value="pulseaudio">PulseAudio</option>
                                 </select>
@@ -278,7 +271,7 @@ cat << 'EOF' > index.html
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Hostname</label>
-                                <input type="text" id="hostname" value="arch-system" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500">
+                                <input type="text" id="hostname" value="archlinux" class="w-full bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm focus:outline-none focus:border-orange-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-2">Timezone</label>
@@ -321,9 +314,16 @@ cat << 'EOF' > index.html
 
     <script>
         let currentStep = 1; const totalSteps = 4;
-        let selectedDiskVal = ""; let selectedDesktopVal = "Awesome";
+        let selectedDiskVal = ""; let selectedDiskBytes = 0; let selectedDesktopVal = "Awesome";
         const stepTitles = ["Select target drive", "Select environment", "Set credentials", "Installing system"];
         
+        function genUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         fetch('/api/status').then(r => r.json()).then(data => {
             document.getElementById('target-cpu').innerText = `${data.cpu} | ${data.boot_mode}`;
             const diskList = document.getElementById('disk-list');
@@ -331,15 +331,20 @@ cat << 'EOF' > index.html
             data.hardware.blockdevices.forEach(dev => {
                 if(dev.type === 'disk') {
                     const extraClasses = isFirst ? 'text-orange-600 bg-orange-50/50 border-orange-500' : 'text-gray-600 border-transparent hover:bg-gray-50';
-                    if(isFirst) selectedDiskVal = `/dev/${dev.name}`;
-                    diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${dev.size}</span></div>`;
+                    if(isFirst) {
+                        selectedDiskVal = `/dev/${dev.name}`;
+                        selectedDiskBytes = parseInt(dev.size);
+                    }
+                    const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
+                    diskList.innerHTML += `<div class="disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', ${dev.size}, this)">/dev/${dev.name} <span class="text-xs text-gray-400 ml-2 font-normal">${sizeGB} GB</span></div>`;
                     isFirst = false;
                 }
             });
         });
 
-        function selectDisk(val, el) {
+        function selectDisk(val, bytes, el) {
             selectedDiskVal = val;
+            selectedDiskBytes = parseInt(bytes);
             document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-gray-600 border-transparent hover:bg-gray-50");
             el.className = "disk-item p-3.5 text-sm font-medium border-l-2 cursor-pointer transition-colors text-orange-600 bg-orange-50/50 border-orange-500";
         }
@@ -385,72 +390,98 @@ cat << 'EOF' > index.html
         }
 
         async function submitArchinstallConfig() {
+            const bootSizeMiB = 1024;
+            const bootSizeBytes = bootSizeMiB * 1024 * 1024;
+            const startBytes = 1048576;
+            const isBtrfs = document.getElementById('fs').value === 'btrfs';
+
             const configPayload = {
+                "version": "4.3",
                 "archinstall-language": "English",
-                "audio_config": { "audio": document.getElementById('audio').value },
+                "app_config": {
+                    "audio_config": { "audio": document.getElementById('audio').value }
+                },
                 "bootloader_config": {
                     "bootloader": document.getElementById('bootloader').value,
-                    "uki": false,
-                    "removable": false
+                    "removable": false,
+                    "uki": false
                 },
-                "debug": false,
                 "disk_config": {
                     "config_type": "default_layout",
                     "device_modifications": [{
                         "device": selectedDiskVal,
+                        "wipe": true,
                         "partitions": [
                             {
-                                "obj_id": "11111111-2222-3333-4444-555555555555",
+                                "obj_id": genUUID(),
                                 "status": "create",
                                 "type": "primary",
-                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 1},
-                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 512},
+                                "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": startBytes },
+                                "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": bootSizeBytes },
                                 "fs_type": "fat32",
                                 "mountpoint": "/boot",
                                 "mount_options": [],
                                 "flags": ["boot"],
-                                "dev_path": selectedDiskVal + "1",
+                                "dev_path": null,
                                 "btrfs": []
                             },
                             {
-                                "obj_id": "66666666-7777-8888-9999-000000000000",
+                                "obj_id": genUUID(),
                                 "status": "create",
                                 "type": "primary",
-                                "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 513},
-                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "B", "value": 0},
+                                "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": startBytes + bootSizeBytes },
+                                "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": selectedDiskBytes - (startBytes + bootSizeBytes) },
                                 "fs_type": document.getElementById('fs').value,
-                                "mountpoint": "/",
-                                "mount_options": [],
+                                "mountpoint": isBtrfs ? null : "/",
+                                "mount_options": isBtrfs ? ["compress=zstd"] : [],
                                 "flags": [],
-                                "dev_path": selectedDiskVal + "2",
-                                "btrfs": []
+                                "dev_path": null,
+                                "btrfs": isBtrfs ? [
+                                    { "mountpoint": "/", "name": "@" },
+                                    { "mountpoint": "/home", "name": "@home" },
+                                    { "mountpoint": "/var/log", "name": "@log" },
+                                    { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" }
+                                ] : []
                             }
-                        ],
-                        "wipe": true
+                        ]
                     }]
                 },
                 "hostname": document.getElementById('hostname').value,
                 "kernels": [document.getElementById('kernel').value],
                 "locale_config": { "kb_layout": "us", "sys_enc": "UTF-8", "sys_lang": "en_US.UTF-8" },
                 "mirror_config": { "mirror_regions": { "Worldwide": ["https://geo.mirror.pkgbuild.com/$repo/os/$arch"] } },
-                "network_config": { "type": "NetworkManager" },
-                "no_pkg_lookups": false,
+                "network_config": { "type": "nm" },
                 "ntp": true,
-                "offline": false,
-                "packages": [],
-                "pacman_config": { "color": false, "parallel_downloads": 5 },
-                "script": "guided",
-                "silent": false,
+                "pacman_config": { "color": true, "parallel_downloads": 5 },
+                "script": null,
                 "swap": document.getElementById('swap').checked ? { "enabled": true, "algorithm": "zstd" } : { "enabled": false },
-                "timezone": document.getElementById('timezone').value,
-                "version": "2.8.6"
+                "timezone": document.getElementById('timezone').value
             };
+
+            if (isBtrfs) {
+                configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
+            }
+            if (document.getElementById('bluetooth').checked) {
+                configPayload.app_config.bluetooth_config = { "enabled": true };
+            }
+            if (document.getElementById('firewall').checked) {
+                configPayload.app_config.firewall_config = { "firewall": "ufw" };
+            }
+            if (document.getElementById('printing').checked) {
+                configPayload.app_config.print_service_config = { "enabled": true };
+            }
+            if (document.getElementById('fonts').checked) {
+                configPayload.app_config.fonts_config = { "fonts": ["noto-fonts-emoji", "noto-fonts-cjk", "ttf-liberation", "ttf-dejavu", "noto-fonts"] };
+            }
 
             if (selectedDesktopVal !== "none") {
                 let mainType = "Desktop";
-                if (selectedDesktopVal === "Awesome") mainType = "WindowMgr";
-                configPayload["profile_config"] = {
+                if (["Awesome", "Bspwm", "Hyprland", "Sway", "i3-wm", "Qtile"].includes(selectedDesktopVal)) mainType = "WindowMgr";
+                configPayload.profile_config = {
+                    "gfx_driver": "All open-source",
+                    "greeter": "sddm",
                     "profile": {
+                        "custom_settings": {},
                         "details": [selectedDesktopVal],
                         "main": mainType
                     }
@@ -458,8 +489,12 @@ cat << 'EOF' > index.html
             }
 
             const credsPayload = {
-                "root-password": document.getElementById('root-password').value,
-                "users": [{ "username": document.getElementById('username').value, "password": document.getElementById('password').value, "sudo": true }]
+                "!root-password": document.getElementById('root-password').value,
+                "!users": [{
+                    "username": document.getElementById('username').value,
+                    "!password": document.getElementById('password').value,
+                    "sudo": true
+                }]
             };
 
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
@@ -533,3 +568,5 @@ echo ""
 while kill -0 $PYTHON_PID 2>/dev/null; do
     sleep 3
 done
+
+kill $SSH_PID 2>/dev/null || true
