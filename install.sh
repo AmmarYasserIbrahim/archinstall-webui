@@ -10,6 +10,15 @@ pacman -Sy --noconfirm qrencode archinstall >/dev/null 2>&1
 
 mkdir -p /tmp/engine && cd /tmp/engine
 
+echo " [+] Sweeping environment for lingering socket processes..."
+# Automatically terminate any stale instances of the python backend or tunnels
+pkill -f "server.py" >/dev/null 2>&1
+pkill -f "free.pinggy.io" >/dev/null 2>&1
+if command -v fuser &> /dev/null; then
+    fuser -k 5000/tcp >/dev/null 2>&1
+fi
+sleep 1
+
 echo " [+] Generating local server infrastructure natively..."
 
 # ====================================================================
@@ -54,7 +63,6 @@ def run_archinstall():
 
     install_state = {"percentage": 10, "message": "Initializing official Archinstall engine...", "status": "running"}
     
-    # Run the official package silently using our generated JSON
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
@@ -86,6 +94,10 @@ def run_archinstall():
         install_state = {"percentage": 99, "message": f"Archinstall halted with exit code {process.returncode}. Check logs.", "status": "error"}
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Mute clean internal server stdout logging to keep output interface immaculate
+        return
+
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -164,9 +176,7 @@ cat << 'EOF' > index.html
     <title>Archinstall Core UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #020617; color: #f8fafc; }
-    </style>
+    <style>body { font-family: 'Inter', sans-serif; background: #020617; color: #f8fafc; }</style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
@@ -446,30 +456,29 @@ cat << 'EOF' > index.html
 EOF
 
 # ====================================================================
-# 4. INITIALIZE SERVER & TUNNEL WITH CLEAN TERMINAL OUTPUT
+# 4. INITIALIZE SERVER & TUNNEL WITH LINK DEVIATION VALIDATION
 # ====================================================================
 echo " [+] Spinning up the Python background logic..."
 python3 server.py &
 PYTHON_PID=$!
 
 echo " [+] Negotiating high-speed encrypted outbound tunnel layers..."
-# Use standard flags to make sure the SSH output doesn't buffer abnormally
+# SSH command structured strictly to prevent buffering issues inside the stream logs
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 -R 80:localhost:5000 free.pinggy.io > /tmp/tunnel.log 2>&1 &
 SSH_PID=$!
 
 sleep 5
 
-# Scrape the public HTTPS tunnel output URL out of the log
+# Scrape and build the respective link formats securely
 PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.pinggy\.link" /tmp/tunnel.log | head -n 1)
 LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
 if [ -z "$LOCAL_IP" ]; then
     LOCAL_IP=$(hostname -I | awk '{print $1}')
 fi
 
-# Fallback block: If public tunnel fails, route everything seamlessly over LAN
 if [ -z "$PUBLIC_URL" ]; then
     DISPLAY_URL="http://${LOCAL_IP}:5000"
-    CONNECTION_MODE="⚠️  LOCAL AREA NETWORK FALLBACK (Tunnel Failed)"
+    CONNECTION_MODE="⚠️  LOCAL AREA NETWORK FALLBACK (Tunnel Delayed/Failed)"
 else
     DISPLAY_URL="${PUBLIC_URL}"
     CONNECTION_MODE="🌐 SECURE PUBLIC SSH TUNNEL"
@@ -487,8 +496,9 @@ qrencode -t utf8i "${DISPLAY_URL}"
 echo ""
 echo " ⏳ Awaiting JSON compilation from your mobile CRM dashboard..."
 
-# Keep the foreground script loop alive and clear terminal print logs
+# Active keepalive polling monitor loop
 while true; do
+    curl -s localhost:5000/api/status > /dev/null 2>&1
     sleep 3
     if ! kill -0 $PYTHON_PID 2>/dev/null; then break; fi
 done
