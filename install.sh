@@ -375,6 +375,7 @@ cat << 'EOF' > index.html
                         "partitions": [
                             {
                                 "btrfs": [],
+                                "dev_path": selectedDiskVal + "1",
                                 "flags": ["boot"],
                                 "fs_type": "fat32",
                                 "mount_options": [],
@@ -386,6 +387,7 @@ cat << 'EOF' > index.html
                             },
                             {
                                 "btrfs": [],
+                                "dev_path": selectedDiskVal + "2",
                                 "flags": [],
                                 "fs_type": document.getElementById('fs').value,
                                 "mount_options": [],
@@ -475,9 +477,13 @@ fi
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 -R 80:localhost:5000 nokey@localhost.run >> "$LOG_FILE" 2>&1 &
 SSH_PID=$!
 
-sleep 6
+PUBLIC_URL=""
+for i in {1..20}; do
+    PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.lhr\.life" "$LOG_FILE" | tail -n 1)
+    if [ ! -z "$PUBLIC_URL" ]; then break; fi
+    sleep 1
+done
 
-PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.lhr\.life" "$LOG_FILE" | tail -n 1)
 LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
 if [ -z "$LOCAL_IP" ]; then LOCAL_IP=$(hostname -I | awk '{print $1}'); fi
 
