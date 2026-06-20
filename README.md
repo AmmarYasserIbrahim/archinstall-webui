@@ -44,16 +44,6 @@ Boot your target server or virtual machine into an official **Arch Linux Live IS
 
 ---
 
-## 🛠️ Repository File Tree Reference
-
-Your repository must contain these three core files in the root folder path:
-
-1. **`launch.sh`**: The initialization sequence executable typed directly onto the target node.
-2. **`server.py`**: The high-speed backend gateway API running inside the live container.
-3. **`index.html`**: The dark-themed, step-by-step Tailwind CSS client control application dashboard.
-
----
-
 ## 📝 License
 
 Distributed under the MIT License. See `LICENSE` for more detailed information parameters.
