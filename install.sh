@@ -65,6 +65,8 @@ def get_system_telemetry():
 def run_archinstall():
     global install_state
     install_state = {"percentage": 5, "message": "Synchronizing pacman mirror repositories...", "status": "running"}
+    os.system('umount -R /mnt >/dev/null 2>&1')
+    os.system('swapoff -a >/dev/null 2>&1')
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
     install_state = {"percentage": 10, "message": "Initializing official Archinstall engine...", "status": "running"}
     
@@ -176,167 +178,147 @@ cat << 'EOF' > index.html
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ubuntu Desktop Installer style for Arch</title>
+    <title>Arch Linux Installer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        ubuntuOrange: '#E95420',
-                        ubuntuAubergine: '#77216F',
-                        ubuntuDarkAubergine: '#5E2750',
-                        ubuntuWarmGrey: '#AEA79F',
-                        ubuntuLightGrey: '#F7F7F7',
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #2C001E; }
+        body { font-family: 'Inter', sans-serif; background: #020617; color: #f8fafc; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #AEA79F; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-0 md:p-6 text-gray-800">
-    <div class="bg-white md:rounded-lg shadow-2xl w-full max-w-5xl min-h-[100vh] md:min-h-[680px] flex flex-col overflow-hidden border border-gray-300">
+<body class="min-h-screen flex items-center justify-center p-2 md:p-4">
+    <div class="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[92vh] md:min-h-[620px]">
         
-        <div class="bg-ubuntuLightGrey px-6 md:px-10 py-4 flex justify-between items-center border-b border-gray-200 shrink-0 select-none">
+        <div class="bg-slate-950 px-4 md:px-6 py-4 border-b border-slate-800 flex justify-between items-center select-none">
             <div class="flex items-center gap-3">
-                <div class="bg-ubuntuOrange text-white font-bold h-7 w-7 rounded flex items-center justify-center text-sm shadow-sm">A</div>
+                <div class="bg-orange-500 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center shadow-md">Æ</div>
                 <div>
-                    <span class="font-bold tracking-tight text-sm text-gray-900 block">Arch Linux Core Installation Setup</span>
-                    <span class="text-[11px] text-gray-500 font-mono block w-[220px] md:w-auto truncate" id="target-cpu">Connecting...</span>
+                    <span class="font-bold tracking-wide uppercase text-sm text-slate-200 block">Archinstall Engine</span>
+                    <span class="text-[10px] text-slate-500 font-mono block w-[160px] md:w-auto truncate -mt-0.5" id="target-cpu">Connecting...</span>
                 </div>
             </div>
-            <span class="text-xs font-semibold text-gray-500 tracking-wide uppercase bg-gray-200/60 px-3 py-1 rounded" id="step-indicator">Step 1 of 4</span>
+            <span id="step-indicator" class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">Step 1 of 4</span>
         </div>
 
-        <div class="flex flex-col md:flex-row flex-grow overflow-hidden bg-white">
-            
-            <div class="w-full md:w-1/4 bg-ubuntuLightGrey border-r border-gray-200 p-6 hidden md:block shrink-0">
-                <ul class="space-y-3 text-sm font-medium" id="left-nav-steps">
-                    <li class="nav-item text-ubuntuOrange font-bold flex items-center gap-2" id="nav-idx-1"><span class="w-1.5 h-1.5 bg-ubuntuOrange rounded-full"></span> Target Storage Device</li>
-                    <li class="nav-item text-gray-400 flex items-center gap-2" id="nav-idx-2"><span class="w-1.5 h-1.5 bg-transparent rounded-full"></span> Manual Partition Table</li>
-                    <li class="nav-item text-gray-400 flex items-center gap-2" id="nav-idx-3"><span class="w-1.5 h-1.5 bg-transparent rounded-full"></span> Operating Ecosystem</li>
-                    <li class="nav-item text-gray-400 flex items-center gap-2" id="nav-idx-4"><span class="w-1.5 h-1.5 bg-transparent rounded-full"></span> Credential Mapping</li>
-                </ul>
-            </div>
-
-            <div class="w-full md:w-3/4 flex flex-col bg-white overflow-hidden p-6 md:p-10 flex-grow">
-                <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
-                    <form id="wizard-form" class="space-y-6">
-                        
-                        <div id="step-1" class="wizard-step block space-y-4">
-                            <h3 class="text-lg font-light text-gray-900 border-b border-gray-100 pb-2">Select your storage block architecture</h3>
-                            <div class="border border-gray-300 rounded overflow-hidden h-44 custom-scrollbar overflow-y-auto bg-white shadow-inner" id="disk-list"></div>
-                            <div class="grid grid-cols-2 gap-4 pt-2">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Bootloader Interface Target</label>
-                                    <select id="bootloader" class="w-full border border-gray-300 rounded py-2 px-3 text-sm bg-white text-gray-800 outline-none focus:border-ubuntuOrange">
-                                        <option value="Grub">GRUB 2 Module</option>
-                                        <option value="Systemd-boot">Systemd-boot Native</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 py-3 px-4 bg-ubuntuLightGrey border border-gray-200 rounded mt-4">
-                                <input type="checkbox" id="swap" checked class="w-4 h-4 text-ubuntuOrange focus:ring-ubuntuOrange rounded accent-ubuntuOrange cursor-pointer">
-                                <label for="swap" class="text-sm font-medium text-gray-700 cursor-pointer">Configure Virtualized zRAM Memory Layer</label>
-                            </div>
+        <div class="p-4 md:p-8 flex-grow overflow-y-auto custom-scrollbar">
+            <div id="validation-alert" class="hidden mb-4 p-3 bg-red-950/40 border border-red-900 text-red-400 text-xs rounded-lg font-medium"></div>
+            <form id="wizard-form" class="space-y-6">
+                
+                <div id="step-1" class="wizard-step block space-y-4">
+                    <div class="border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-orange-500">1. Storage Architecture</h2>
+                    </div>
+                    <div class="border border-slate-800 bg-slate-950 rounded-lg overflow-hidden h-44 custom-scrollbar overflow-y-auto" id="disk-list"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Bootloader Target</label>
+                            <select id="bootloader" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-orange-500">
+                                <option value="Grub">GRUB 2 Module</option>
+                                <option value="Systemd-boot">Systemd-boot Native</option>
+                            </select>
                         </div>
-
-                        <div id="step-2" class="wizard-step hidden space-y-4">
-                            <h3 class="text-lg font-light text-gray-900 border-b border-gray-100 pb-2">Define partition mount table schemas</h3>
-                            <div class="bg-ubuntuLightGrey border border-gray-200 rounded-lg p-3 md:p-4 shadow-inner">
-                                <div class="flex font-semibold text-[10px] md:text-xs text-gray-500 mb-2 border-b border-gray-200 pb-2 uppercase tracking-wider">
-                                    <div class="w-[30%]">Mount Path</div>
-                                    <div class="w-[25%]">Filesystem</div>
-                                    <div class="w-[35%]">Block Sizing</div>
-                                    <div class="w-[10%] text-center">Drop</div>
-                                </div>
-                                <div id="partition-list" class="space-y-2 mb-4"></div>
-                                <button type="button" onclick="addPartition()" class="text-xs bg-white border border-gray-300 px-4 py-2 rounded font-medium text-gray-700 hover:bg-gray-100 shadow-sm transition-all">+ Add System Block Mount</button>
-                            </div>
-                        </div>
-
-                        <div id="step-3" class="wizard-step hidden space-y-4">
-                            <h3 class="text-lg font-light text-gray-900 border-b border-gray-100 pb-2">Select your targeted runtime desktop target</h3>
-                            <div class="border border-gray-200 rounded-lg p-3 custom-scrollbar overflow-y-auto max-h-48 grid grid-cols-2 md:grid-cols-3 gap-2 bg-ubuntuLightGrey" id="desktop-grid"></div>
-                            
-                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-4">Integrated App Services Core Packages</h4>
-                            <div class="grid grid-cols-2 gap-3">
-                                <label class="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded text-xs font-medium cursor-pointer hover:border-ubuntuWarmGrey"><input type="checkbox" id="bluetooth" checked class="text-ubuntuOrange focus:ring-ubuntuOrange rounded w-4 h-4 accent-ubuntuOrange"> Enable Bluetooth</label>
-                                <label class="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded text-xs font-medium cursor-pointer hover:border-ubuntuWarmGrey"><input type="checkbox" id="firewall" checked class="text-ubuntuOrange focus:ring-ubuntuOrange rounded w-4 h-4 accent-ubuntuOrange"> Secure UFW Firewall</label>
-                                <label class="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded text-xs font-medium cursor-pointer hover:border-ubuntuWarmGrey"><input type="checkbox" id="printing" checked class="text-ubuntuOrange focus:ring-ubuntuOrange rounded w-4 h-4 accent-ubuntuOrange"> CUPS Print Stack</label>
-                                <label class="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded text-xs font-medium cursor-pointer hover:border-ubuntuWarmGrey"><input type="checkbox" id="fonts" checked class="text-ubuntuOrange focus:ring-ubuntuOrange rounded w-4 h-4 accent-ubuntuOrange"> Noto Typography</label>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4 pt-2">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Target Base Kernel Payload</label>
-                                    <select id="kernel" class="w-full border border-gray-300 rounded py-2 px-3 text-sm bg-white text-gray-800 outline-none focus:border-ubuntuOrange">
-                                        <option value="linux">Standard Mainline Kernel</option>
-                                        <option value="linux-lts">Long Term Support (LTS)</option>
-                                        <option value="linux-zen">Optimized Zen Engine</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Audio Routing Server</label>
-                                    <select id="audio" class="w-full border border-gray-300 rounded py-2 px-3 text-sm bg-white text-gray-800 outline-none focus:border-ubuntuOrange">
-                                        <option value="pipewire">Pipewire Driver (Default)</option>
-                                        <option value="pulseaudio">Legacy PulseAudio Engine</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="step-4" class="wizard-step hidden space-y-4">
-                            <h3 class="text-lg font-light text-gray-900 border-b border-gray-100 pb-2">Map local identity context details</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Machine Hostname</label>
-                                    <input type="text" id="hostname" value="archlinux" class="w-full bg-white border border-gray-300 rounded py-2 px-3 text-sm focus:outline-none focus:border-ubuntuOrange shadow-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Timezone Location</label>
-                                    <input type="text" id="timezone" value="UTC" class="w-full bg-white border border-gray-300 rounded py-2 px-3 text-sm focus:outline-none focus:border-ubuntuOrange shadow-sm">
-                                </div>
-                            </div>
-                            <div class="bg-ubuntuLightGrey border border-gray-200 rounded-lg p-4 mt-4 space-y-3">
-                                <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1.5">User Identity Matrix</h4>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div><input type="text" id="username" placeholder="Target Account Name" class="w-full border border-gray-300 rounded py-2.5 px-3 text-sm focus:outline-none focus:border-ubuntuOrange bg-white"></div>
-                                    <div><input type="password" id="password" placeholder="Account Password" class="w-full border border-gray-300 rounded py-2.5 px-3 text-sm focus:outline-none focus:border-ubuntuOrange bg-white"></div>
-                                </div>
-                                <div><input type="password" id="root-password" placeholder="System Superuser Root Password" class="w-full border border-gray-300 rounded py-2.5 px-3 text-sm focus:outline-none focus:border-red-400 bg-white"></div>
-                            </div>
-                        </div>
-
-                        <div id="step-5" class="wizard-step hidden flex flex-col items-center justify-center h-full pt-8 pb-8">
-                            <div class="text-center w-full max-w-lg">
-                                <h2 class="text-xl font-medium text-gray-900 mb-1" id="installation-header-title">Deploying components to storage block targets</h2>
-                                <p id="progress-msg" class="text-xs font-medium text-ubuntuOrange font-mono tracking-tight mb-8">Compiling internal JSON array maps...</p>
-                                <div class="flex justify-between items-end mb-2 px-1">
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Installation Progress Metric</span>
-                                    <span id="progress-pct" class="text-3xl font-light text-ubuntuOrange tracking-tighter">0%</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-8 shadow-inner">
-                                    <div id="progress-bar-fill" class="bg-gradient-to-r from-ubuntuOrange to-ubuntuAubergine h-full rounded-full w-0 transition-all duration-500 ease-out"></div>
-                                </div>
-                                <button type="button" id="btn-reboot" class="hidden w-full bg-ubuntuOrange hover:bg-orange-600 text-white font-medium py-3 rounded text-sm transition-colors shadow-md uppercase tracking-wider text-xs">Close Volumes & Reboot Hardware</button>
-                            </div>
-                        </div>
-                    </form>
+                    </div>
+                    <div class="flex items-center gap-3 p-3.5 bg-slate-950 border border-slate-800 rounded-lg">
+                        <input type="checkbox" id="swap" checked class="w-4 h-4 text-orange-500 border-slate-800 bg-slate-900 rounded focus:ring-orange-500 accent-orange-500 cursor-pointer">
+                        <label for="swap" class="text-sm font-semibold text-slate-200 cursor-pointer">Allocate zRAM Swap Module</label>
+                    </div>
                 </div>
 
-                <div id="nav-footer" class="pt-5 bg-white border-t border-gray-100 flex justify-between items-center shrink-0 mt-4 select-none">
-                    <button type="button" id="btn-back" class="text-gray-500 hover:text-gray-900 font-medium text-sm hidden py-2 px-4 border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors">Back</button>
-                    <button type="button" id="btn-next" class="ml-auto bg-ubuntuOrange hover:bg-orange-600 text-white font-medium py-2.5 px-6 rounded text-sm shadow-sm transition-colors border border-transparent">Continue</button>
+                <div id="step-2" class="wizard-step hidden space-y-4">
+                    <div class="border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-orange-500">2. Partition Table Configuration</h2>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 md:p-4">
+                        <div class="flex font-bold text-[10px] md:text-xs text-slate-400 mb-2 border-b border-slate-800 pb-2 uppercase tracking-wider">
+                            <div class="w-[30%]">Mount Point</div>
+                            <div class="w-[25%]">FS Type</div>
+                            <div class="w-[35%]">Block Size</div>
+                            <div class="w-[10%] text-center">Drop</div>
+                        </div>
+                        <div id="partition-list" class="space-y-2 mb-3"></div>
+                        <button type="button" onclick="addPartition()" class="text-xs bg-slate-900 border border-slate-800 px-4 py-2 rounded font-semibold text-slate-300 hover:bg-slate-800 transition-colors">+ Add Custom Partition</button>
+                    </div>
                 </div>
-            </div>
+
+                <div id="step-3" class="wizard-step hidden space-y-4">
+                    <div class="border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-orange-500">3. Workspace & Core Ecosystem</h2>
+                    </div>
+                    <div class="border border-slate-800 bg-slate-950 rounded-lg overflow-hidden p-2 custom-scrollbar overflow-y-auto max-h-44 grid grid-cols-2 md:grid-cols-3 gap-2" id="desktop-grid"></div>
+                    
+                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-4">Additional Core App Services</h4>
+                    <div class="grid grid-cols-2 gap-2 md:gap-3">
+                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="bluetooth" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> Bluetooth</label>
+                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="firewall" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> UFW Firewall</label>
+                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="printing" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> CUPS Printing</label>
+                        <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300 cursor-pointer hover:border-slate-700"><input type="checkbox" id="fonts" checked class="text-orange-500 focus:ring-orange-500 rounded w-4 h-4 bg-slate-900 border-slate-800 accent-orange-500"> Noto Fonts</label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Target Base Kernel</label>
+                            <select id="kernel" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500">
+                                <option value="linux">Standard Upstream</option>
+                                <option value="linux-lts">LTS (Long Term Support)</option>
+                                <option value="linux-zen">Zen Kernel</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Audio Server</label>
+                            <select id="audio" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500">
+                                <option value="pipewire">Pipewire (Default)</option>
+                                <option value="pulseaudio">Legacy PulseAudio</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="step-4" class="wizard-step hidden space-y-4">
+                    <div class="border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-orange-500">4. Accounts & Access Layer</h2>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Hostname</label>
+                            <input type="text" id="hostname" value="archlinux" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500 shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Timezone</label>
+                            <input type="text" id="timezone" value="UTC" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500 shadow-sm">
+                        </div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">User Profile Configuration</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><input type="text" id="username" placeholder="Username" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500"></div>
+                            <div><input type="password" id="password" placeholder="User Password" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-orange-500"></div>
+                        </div>
+                        <div><input type="password" id="root-password" placeholder="Superuser Root Password" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-red-500"></div>
+                    </div>
+                </div>
+
+                <div id="step-5" class="wizard-step hidden flex flex-col items-center justify-center h-full pt-8 pb-8">
+                    <div class="text-center w-full max-w-lg">
+                        <h2 class="text-xl font-bold text-white mb-2">Deploying Infrastructure Engine</h2>
+                        <p id="progress-msg" class="text-xs font-semibold text-orange-500 font-mono tracking-tight mb-8">Transmitting deployment matrices...</p>
+                        <div class="flex justify-between items-end mb-2 px-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Installation Progress Metric</span>
+                            <span id="progress-pct" class="text-3xl font-bold text-white tracking-tighter">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-950 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800 mb-8 shadow-inner">
+                            <div id="progress-bar-fill" class="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full w-0 transition-all duration-500 ease-out"></div>
+                        </div>
+                        <button type="button" id="btn-reboot" class="hidden w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg uppercase tracking-wider">Close Volumes & Reboot Hardware</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="nav-footer" class="px-4 md:px-6 py-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center shrink-0">
+            <button type="button" id="btn-back" class="text-slate-400 hover:text-white font-bold text-sm hidden py-2 px-4 border border-slate-800 rounded-lg shadow-sm hover:bg-slate-900 transition-colors">Back</button>
+            <button type="button" id="btn-next" class="ml-auto bg-orange-600 hover:bg-orange-50 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md transition-all active:scale-95">Continue</button>
         </div>
     </div>
 
@@ -355,16 +337,16 @@ cat << 'EOF' > index.html
         function genUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
+                return v.toString(166);
             });
         }
 
         window.onload = () => {
             const dGrid = document.getElementById('desktop-grid');
             desktops.forEach(d => {
-                let text = d === 'none' ? 'Minimal CLI Core' : d;
-                let c = d === 'none' ? 'border-ubuntuOrange text-ubuntuOrange bg-orange-50 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50 bg-white';
-                dGrid.innerHTML += `<div class="desktop-item p-2.5 text-xs border rounded cursor-pointer transition-all shadow-sm flex items-center gap-2 ${c}" data-val="${d}" onclick="selectDesktop('${d}', this)"><span class="w-1.5 h-1.5 rounded-full ${d==='none'?'bg-ubuntuOrange':'bg-transparent'}"></span>${text}</div>`;
+                let text = d === 'none' ? 'Minimal (CLI Core)' : d;
+                let c = d === 'none' ? 'border-orange-500 text-orange-500 bg-orange-950/20 font-semibold' : 'border-slate-800 text-slate-300 hover:border-slate-700 bg-slate-950/40';
+                dGrid.innerHTML += `<div class="desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 ${c}" data-val="${d}" onclick="selectDesktop('${d}', this)"><span class="w-1.5 h-1.5 rounded-full ${d==='none'?'bg-orange-500':'bg-transparent'}"></span>${text}</div>`;
             });
             renderPartitions();
             
@@ -375,9 +357,8 @@ cat << 'EOF' > index.html
                     document.getElementById('step-1').classList.add('hidden');
                     document.getElementById('step-5').classList.remove('hidden');
                     document.getElementById('nav-footer').style.display = 'none';
-                    document.getElementById('step-indicator').innerText = "Installing Workspace Profile Setup";
+                    document.getElementById('step-indicator').innerText = "Installing";
                     document.getElementById('step-title').innerText = stepTitles[4];
-                    document.getElementById('left-nav-steps').style.display = 'none';
                     
                     if(data.install_state.status === "completed") {
                         document.getElementById('progress-msg').innerText = "Build Successful! System ready for reboot.";
@@ -394,10 +375,10 @@ cat << 'EOF' > index.html
                 let isFirst = true;
                 data.hardware.blockdevices.forEach(dev => {
                     if(dev.type === 'disk') {
-                        const extraClasses = isFirst ? 'text-ubuntuOrange bg-orange-50/40 border-l-4 border-ubuntuOrange font-medium' : 'text-gray-600 border-l-4 border-transparent hover:bg-gray-50';
+                        const extraClasses = isFirst ? 'text-orange-500 bg-orange-950/20 border-l-4 border-orange-500 font-medium' : 'text-slate-400 border-l-4 border-transparent hover:bg-slate-800/40';
                         if(isFirst) { selectedDiskVal = `/dev/${dev.name}`; selectedDiskBytes = parseInt(dev.size); }
                         const sizeGB = (parseInt(dev.size) / (1024 ** 3)).toFixed(1);
-                        diskList.innerHTML += `<div class="disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-gray-100 bg-white items-center ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', '${dev.size}', this)"><span>💾 Drive Mapping Allocation: /dev/${dev.name}</span> <span class="bg-gray-200 px-2 py-0.5 rounded text-xs font-semibold font-mono text-gray-700">${sizeGB} GB</span></div>`;
+                        diskList.innerHTML += `<div class="disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-slate-800 bg-slate-950 items-center ${extraClasses}" onclick="selectDisk('/dev/${dev.name}', '${dev.size}', this)"><span> 💡 Block Drive: /dev/${dev.name}</span> <span class="bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-xs font-semibold font-mono text-slate-300">${sizeGB} GB</span></div>`;
                         isFirst = false;
                     }
                 });
@@ -409,24 +390,24 @@ cat << 'EOF' > index.html
             list.innerHTML = '';
             partitions.forEach((p, i) => {
                 list.innerHTML += `
-                    <div class="flex gap-1 md:gap-2 items-center bg-white p-1 rounded shadow-sm">
-                        <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] border border-gray-300 p-1.5 rounded text-[11px] md:text-xs outline-none focus:border-ubuntuOrange">
-                        <select onchange="partitions[${i}].fs=this.value" class="w-[25%] border border-gray-300 p-1.5 rounded text-[11px] md:text-xs outline-none bg-white">
+                    <div class="flex gap-1 md:gap-2 items-center bg-slate-900 p-1 rounded-lg border border-slate-800/60">
+                        <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] bg-slate-950 border border-slate-800 p-1.5 rounded text-[11px] md:text-xs outline-none focus:border-orange-500 text-slate-200">
+                        <select onchange="partitions[${i}].fs=this.value" class="w-[25%] bg-slate-950 border border-slate-800 p-1.5 rounded text-[11px] md:text-xs outline-none text-slate-200">
                             <option value="fat32" ${p.fs=='fat32'?'selected':''}>fat32</option>
                             <option value="ext4" ${p.fs=='ext4'?'selected':''}>ext4</option>
                             <option value="btrfs" ${p.fs=='btrfs'?'selected':''}>btrfs</option>
                             <option value="xfs" ${p.fs=='xfs'?'selected':''}>xfs</option>
                             <option value="linux-swap" ${p.fs=='linux-swap'?'selected':''}>swap</option>
                         </select>
-                        <div class="w-[35%] flex border border-gray-300 rounded overflow-hidden bg-white">
-                            <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] md:w-1/2 p-1.5 text-[11px] md:text-xs outline-none border-r border-gray-300">
-                            <select onchange="partitions[${i}].unit=this.value" class="w-[45%] md:w-1/2 bg-gray-50 text-[10px] outline-none font-medium text-gray-600">
+                        <div class="w-[35%] flex bg-slate-950 border border-slate-800 rounded overflow-hidden">
+                            <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] md:w-1/2 bg-slate-950 p-1.5 text-[11px] md:text-xs outline-none border-r border-slate-800 text-slate-200">
+                            <select onchange="partitions[${i}].unit=this.value" class="w-[45%] md:w-1/2 bg-slate-900 text-[10px] outline-none font-semibold text-slate-400">
                                 <option value="MiB" ${p.unit=='MiB'?'selected':''}>MB</option>
                                 <option value="GiB" ${p.unit=='GiB'?'selected':''}>GB</option>
                                 <option value="Percent" ${p.unit=='Percent'?'selected':''}>%</option>
                             </select>
                         </div>
-                        <button type="button" onclick="partitions.splice(${i}, 1); renderPartitions()" class="w-[10%] text-red-500 font-bold text-xs md:text-sm hover:bg-red-50 rounded py-1.5 transition-colors">Drop</button>
+                        <button type="button" onclick="partitions.splice(${i}, 1); renderPartitions()" class="w-[10%] text-rose-500 font-bold text-xs md:text-sm hover:bg-rose-950/20 rounded py-1.5 transition-colors">Drop</button>
                     </div>
                 `;
             });
@@ -439,47 +420,48 @@ cat << 'EOF' > index.html
 
         function selectDisk(val, bytes, el) {
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
-            document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-gray-100 bg-white items-center text-gray-600 border-l-4 border-transparent hover:bg-gray-50");
-            el.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-gray-100 bg-white items-center text-ubuntuOrange bg-orange-50/40 border-l-4 border-ubuntuOrange font-medium";
+            document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-slate-800 bg-slate-950 items-center text-slate-400 border-l-4 border-transparent hover:bg-slate-800/40");
+            el.className = "disk-item p-4 text-sm cursor-pointer transition-all flex justify-between border-b border-slate-800 bg-slate-950 items-center text-orange-500 bg-orange-950/20 border-l-4 border-orange-500 font-medium";
         }
 
         function selectDesktop(val, el) {
             selectedDesktopVal = val;
             document.querySelectorAll('.desktop-item').forEach(i => {
-                i.className = "desktop-item p-2.5 text-xs border rounded cursor-pointer transition-all shadow-sm flex items-center gap-2 border-gray-200 text-gray-600 hover:bg-gray-50 bg-white";
+                i.className = "desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 border-slate-800 text-slate-300 hover:border-slate-700 bg-slate-950/40";
                 i.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-transparent";
             });
-            el.className = "desktop-item p-2.5 text-xs border rounded cursor-pointer transition-all shadow-sm flex items-center gap-2 border-ubuntuOrange text-ubuntuOrange bg-orange-50 font-semibold";
-            el.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-ubuntuOrange";
+            el.className = "desktop-item p-2.5 text-xs border rounded-lg cursor-pointer transition-all flex items-center gap-2 border-orange-500 text-orange-500 bg-orange-950/20 font-semibold";
+            el.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-orange-500";
         }
 
         document.getElementById('btn-next').addEventListener('click', () => {
+            const alertBox = document.getElementById('validation-alert');
+            alertBox.classList.add('hidden');
+
+            if (currentStep === 2) {
+                let hasBoot = partitions.some(p => p.mountpoint === '/boot' || p.mountpoint === '/boot/efi');
+                let hasRoot = partitions.some(p => p.mountpoint === '/');
+                if (!hasBoot || !hasRoot) {
+                    alertBox.innerText = "Error: Layout validation failure. You must define an active /boot and root (/) mount configuration path before continuing.";
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
+            }
             if (currentStep === 4) { submitArchinstallConfig(); }
             if (currentStep < totalSteps) {
                 document.getElementById(`step-${currentStep}`).classList.add('hidden');
-                document.getElementById(`nav-idx-${currentStep}`).className = "nav-item text-gray-400 flex items-center gap-2";
-                document.getElementById(`nav-idx-${currentStep}`).querySelector('span').className = "w-1.5 h-1.5 bg-transparent rounded-full";
-                
                 currentStep++;
                 document.getElementById(`step-${currentStep}`).classList.remove('hidden');
-                if (currentStep < totalSteps) {
-                    document.getElementById(`nav-idx-${currentStep}`).className = "nav-item text-ubuntuOrange font-bold flex items-center gap-2";
-                    document.getElementById(`nav-idx-${currentStep}`).querySelector('span').className = "w-1.5 h-1.5 bg-ubuntuOrange rounded-full";
-                }
                 updateUI();
             }
         });
 
         document.getElementById('btn-back').addEventListener('click', () => {
+            document.getElementById('validation-alert').classList.add('hidden');
             if (currentStep > 1 && currentStep < totalSteps) {
                 document.getElementById(`step-${currentStep}`).classList.add('hidden');
-                document.getElementById(`nav-idx-${currentStep}`).className = "nav-item text-gray-400 flex items-center gap-2";
-                document.getElementById(`nav-idx-${currentStep}`).querySelector('span').className = "w-1.5 h-1.5 bg-transparent rounded-full";
-                
                 currentStep--;
                 document.getElementById(`step-${currentStep}`).classList.remove('hidden');
-                document.getElementById(`nav-idx-${currentStep}`).className = "nav-item text-ubuntuOrange font-bold flex items-center gap-2";
-                document.getElementById(`nav-idx-${currentStep}`).querySelector('span').className = "w-1.5 h-1.5 bg-ubuntuOrange rounded-full";
                 updateUI();
             }
         });
@@ -490,18 +472,18 @@ cat << 'EOF' > index.html
                 document.getElementById('step-indicator').innerText = `Step ${currentStep} of ${totalSteps - 1}`;
                 document.getElementById('step-title').innerText = stepTitles[currentStep - 1];
             } else {
-                document.getElementById('step-indicator').innerText = "Installing Payload Environment Setup";
+                document.getElementById('step-indicator').innerText = "Installing";
                 document.getElementById('step-title').innerText = stepTitles[4];
             }
             
             if (currentStep === totalSteps - 1) {
                 document.getElementById('btn-next').innerText = "Install Now";
-                document.getElementById('btn-next').className = "ml-auto bg-ubuntuOrange hover:bg-orange-600 text-white font-medium py-2.5 px-6 rounded text-sm shadow-sm transition-colors border border-transparent uppercase tracking-wider text-xs";
+                document.getElementById('btn-next').className = "ml-auto bg-orange-600 hover:bg-orange-500 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md border border-transparent uppercase tracking-wider text-xs active:scale-95";
             } else if (currentStep === totalSteps) {
                 document.getElementById('nav-footer').style.display = 'none';
             } else {
                 document.getElementById('btn-next').innerText = "Continue";
-                document.getElementById('btn-next').className = "ml-auto bg-white border border-gray-300 hover:border-gray-400 text-gray-800 font-medium py-2 px-6 rounded text-sm shadow-sm shadow-inner transition-colors";
+                document.getElementById('btn-next').className = "ml-auto bg-orange-600 hover:bg-orange-50 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-md transition-colors active:scale-95";
             }
         }
 
@@ -611,8 +593,7 @@ cat << 'EOF' > index.html
                 credsPayload["root-password"] = rootPass;
             }
 
-            document.getElementById('left-nav-steps').style.display = 'none';
-            document.getElementById('progress-msg').innerText = "Transmitting metrics to local deployment socket layers...";
+            document.getElementById('progress-msg').innerText = "Transmitting parameters to local deployment socket layers...";
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             startTerminalStream();
         }
@@ -625,10 +606,9 @@ cat << 'EOF' > index.html
                 document.getElementById('progress-pct').innerText = `${data.percentage}%`;
                 document.getElementById('progress-bar-fill').style.width = `${data.percentage}%`;
                 if(data.status === "error") {
-                    document.getElementById('progress-msg').classList.replace('text-ubuntuOrange', 'text-red-600');
+                    document.getElementById('progress-msg').classList.replace('text-orange-500', 'text-red-500');
                     document.getElementById('progress-bar-fill').className = "bg-red-600 h-full rounded-full";
-                    document.getElementById('progress-pct').classList.replace('text-ubuntuOrange', 'text-red-600');
-                    document.getElementById('installation-header-title').innerText = "Deployment Fault Encountered";
+                    document.getElementById('progress-pct').classList.replace('text-white', 'text-red-500');
                     stream.close();
                 }
                 if(data.status === "completed") {
@@ -686,3 +666,5 @@ echo ""
 while kill -0 $PYTHON_PID 2>/dev/null; do
     sleep 3
 done
+
+kill $SSH_PID 2>/dev/null || true
