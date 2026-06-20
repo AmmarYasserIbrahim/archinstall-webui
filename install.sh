@@ -4,6 +4,14 @@ clear
 LOG_FILE="/tmp/archinstall-webui.log"
 echo "--- NEW INSTALLATION SESSION: $(date) ---" > "$LOG_FILE"
 
+cleanup() {
+    pkill -9 -f "server.py" >> "$LOG_FILE" 2>&1
+    pkill -9 -f "localhost.run" >> "$LOG_FILE" 2>&1
+    if [ ! -z "$PYTHON_PID" ]; then kill -9 "$PYTHON_PID" >/dev/null 2>&1; fi
+    if [ ! -z "$SSH_PID" ]; then kill -9 "$SSH_PID" >/dev/null 2>&1; fi
+}
+trap cleanup EXIT INT TERM
+
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1
 
 mkdir -p /tmp/engine && cd /tmp/engine
@@ -409,7 +417,7 @@ cat << 'EOF' > index.html
                                 "status": "create",
                                 "type": "primary",
                                 "start": {"sector_size": {"value": 512, "unit": "B"}, "unit": "MiB", "value": 513},
-                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "Percent", "value": 100},
+                                "size": {"sector_size": {"value": 512, "unit": "B"}, "unit": "B", "value": 0},
                                 "fs_type": document.getElementById('fs').value,
                                 "mountpoint": "/",
                                 "mount_options": [],
@@ -525,5 +533,3 @@ echo ""
 while kill -0 $PYTHON_PID 2>/dev/null; do
     sleep 3
 done
-
-kill $SSH_PID 2>/dev/null || true
