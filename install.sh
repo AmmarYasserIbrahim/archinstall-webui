@@ -456,29 +456,35 @@ cat << 'EOF' > index.html
 EOF
 
 # ====================================================================
-# 4. INITIALIZE SERVER & TUNNEL WITH LINK DEVIATION VALIDATION
+# 4. INITIALIZE SERVER & TUNNEL WITH ROCK-SOLID SSH HOOKS
 # ====================================================================
 echo " [+] Spinning up the Python background logic..."
 python3 server.py &
 PYTHON_PID=$!
 
 echo " [+] Negotiating high-speed encrypted outbound tunnel layers..."
-# SSH command structured strictly to prevent buffering issues inside the stream logs
-ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 -R 80:localhost:5000 free.pinggy.io > /tmp/tunnel.log 2>&1 &
+# Swap to localhost.run with robust, non-interactive flags to prevent connection drops
+ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 -R 80:localhost:5000 nokey@localhost.run > /tmp/tunnel.log 2>&1 &
 SSH_PID=$!
 
-sleep 5
+# Give the background SSH daemon a brief window to complete the TLS handshake
+sleep 6
 
-# Scrape and build the respective link formats securely
-PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.pinggy\.link" /tmp/tunnel.log | head -n 1)
+# Parse the standard localhost.run domain layout output
+PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.lhr\.life" /tmp/tunnel.log | head -n 1)
 LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
 if [ -z "$LOCAL_IP" ]; then
     LOCAL_IP=$(hostname -I | awk '{print $1}')
 fi
 
 if [ -z "$PUBLIC_URL" ]; then
+    # Try one final loose string scrape just in case the format changed slightly
+    PUBLIC_URL=$(grep -oE "https://[a-zA-Z0-9.-]+" /tmp/tunnel.log | grep -v "localhost" | head -n 1)
+fi
+
+if [ -z "$PUBLIC_URL" ]; then
     DISPLAY_URL="http://${LOCAL_IP}:5000"
-    CONNECTION_MODE="⚠️  LOCAL AREA NETWORK FALLBACK (Tunnel Delayed/Failed)"
+    CONNECTION_MODE="⚠️  LOCAL AREA NETWORK FALLBACK (Tunnel Delayed)"
 else
     DISPLAY_URL="${PUBLIC_URL}"
     CONNECTION_MODE="🌐 SECURE PUBLIC SSH TUNNEL"
@@ -496,7 +502,7 @@ qrencode -t utf8i "${DISPLAY_URL}"
 echo ""
 echo " ⏳ Awaiting JSON compilation from your mobile CRM dashboard..."
 
-# Active keepalive polling monitor loop
+# Keepalive loop
 while true; do
     curl -s localhost:5000/api/status > /dev/null 2>&1
     sleep 3
