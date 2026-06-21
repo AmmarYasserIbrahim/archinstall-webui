@@ -99,7 +99,10 @@
                         <div class="border-t border-slate-200 pt-4">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Partition Layout</label>
-                                <button type="button" onclick="addPartitionRow()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-md font-semibold hover:bg-slate-700 transition-colors shadow-sm">+ Add Mount</button>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="resetPartitions()" class="text-[10px] bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md font-bold hover:bg-slate-300 uppercase tracking-wider transition-colors shadow-sm">Restore Default</button>
+                                    <button type="button" onclick="addPartitionRow()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-md font-semibold hover:bg-slate-700 transition-colors shadow-sm">+ Add Mount</button>
+                                </div>
                             </div>
                             <div class="bg-white border border-slate-200 rounded-lg shadow-sm p-3">
                                 <div id="partition-list" class="space-y-2"></div>
@@ -120,8 +123,8 @@
                     <div id="panel-boot" class="config-panel hidden">
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Bootloader Engine</label>
                         <select id="bootloader" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                            <option value="Grub">GRUB 2 (High Compatibility)</option>
                             <option value="Systemd-boot">Systemd-boot (Modern UEFI)</option>
-                            <option value="Grub">GRUB 2 (Legacy & UEFI support)</option>
                         </select>
                     </div>
 
@@ -242,10 +245,7 @@
         let selectedDiskBytes = 0;
         let selectedDesktopVal = "none";
 
-        let partitions = [
-            { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 1024, unit: 'MiB' },
-            { id: genUUID(), mountpoint: '/', fs: 'btrfs', size: 100, unit: 'Percent' }
-        ];
+        let partitions = [];
 
         const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Cutefish","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","KDE Plasma","Labwc","Lxqt","Mate","Niri","Qtile","River","Sway","Xfce4","Xmonad","none"];
 
@@ -254,10 +254,19 @@
         window.onload = () => {
             initNavigationMenus();
             buildDesktopEnvironmentGrid();
-            renderPartitions();
+            resetPartitions();
             registerGlobalEventHooks();
             fetchSystemTelemetryData();
         };
+
+        function resetPartitions() {
+            partitions = [
+                { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 1024, unit: 'MiB' },
+                { id: genUUID(), mountpoint: '/', fs: 'btrfs', size: 100, unit: 'Percent' }
+            ];
+            renderPartitions();
+            hideErrors();
+        }
 
         function initNavigationMenus() {
             const destNav = document.getElementById('menu-desktop-nav');
@@ -270,7 +279,11 @@
                 navItem.className = `w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center ${index === activeIndex ? 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200' : 'text-slate-600 hover:bg-slate-200 border border-transparent'}`;
                 navItem.id = `nav-btn-${mod.id}`;
                 navItem.innerText = mod.label;
-                navItem.onclick = () => switchActiveWorkspaceModule(index);
+                
+                navItem.onclick = () => {
+                    if (validateStep(activeIndex)) switchActiveWorkspaceModule(index);
+                };
+                
                 destNav.appendChild(navItem);
 
                 const mobOpt = document.createElement('option');
@@ -293,7 +306,6 @@
             });
         }
 
-        // --- FIX: Global Validation Gateway ---
         function hideErrors() {
             document.querySelectorAll('[id$="-error"]').forEach(el => el.classList.add('hidden'));
         }
@@ -303,60 +315,79 @@
             if (el) { el.innerText = msg; el.classList.remove('hidden'); }
         }
 
-        function validateAll() {
+        // --- MATH/VALIDATION ENGINE (Rewritten) ---
+        function validateStep(index) {
             hideErrors();
 
-            // 1. Disk Validation
-            if (!selectedDiskVal) { 
-                displayError('disk-error', "You must select a target block storage device."); 
-                switchActiveWorkspaceModule(2); return false; 
+            if (index === 2) { 
+                if (!selectedDiskVal) { 
+                    displayError('disk-error', "You must select a target block storage device."); 
+                    return false; 
+                }
+                if (partitions.length === 0) {
+                    displayError('disk-error', "You must configure at least a boot and root partition."); 
+                    return false;
+                }
+                
+                let hasRoot = false, hasBoot = false;
+                let fixedBytes = 0;
+                let pctTotal = 0;
+                
+                // Absolute maximum space available minus safety headers
+                let usableBytes = selectedDiskBytes - (2 * 1024 * 1024); 
+
+                for (let i=0; i<partitions.length; i++) {
+                    let p = partitions[i];
+                    if (!p.mountpoint || p.mountpoint.trim() === "") { 
+                        displayError('disk-error', `Partition row ${i+1} is missing a mountpoint (e.g. / or /boot).`); 
+                        return false; 
+                    }
+                    if (p.size <= 0 || isNaN(p.size)) { 
+                        displayError('disk-error', `Partition row ${i+1} has an invalid size.`); 
+                        return false; 
+                    }
+                    
+                    if (p.mountpoint === "/") hasRoot = true;
+                    if (p.mountpoint === "/boot" || p.mountpoint === "/boot/efi") {
+                        hasBoot = true;
+                        if(p.fs !== 'fat32') {
+                            displayError('disk-error', `The ${p.mountpoint} partition MUST be formatted as fat32.`); 
+                            return false;
+                        }
+                    }
+
+                    if (p.unit === 'MiB') fixedBytes += p.size * 1024 * 1024;
+                    else if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
+                    else if (p.unit === 'Percent') pctTotal += p.size;
+                }
+
+                if (!hasBoot) { displayError('disk-error', "A boot partition (mounted at /boot) is strictly required."); return false; }
+                if (!hasRoot) { displayError('disk-error', "A root partition (mounted at /) is strictly required."); return false; }
+                
+                if (pctTotal > 100) {
+                    displayError('disk-error', "Percentage allocations mathematically exceed 100%."); 
+                    return false;
+                }
+                if (fixedBytes > usableBytes) { 
+                    displayError('disk-error', "The absolute file sizes exceed the physical capacity of the drive."); 
+                    return false; 
+                }
             }
             
-            let hasRoot = false, hasBoot = false, allocatedBytes = 0;
-            let usableBytes = selectedDiskBytes - 1048576; // 1MiB Buffer
-
-            for (let i=0; i<partitions.length; i++) {
-                let p = partitions[i];
-                if (!p.mountpoint || p.mountpoint.trim() === "") { 
-                    displayError('disk-error', `Partition row ${i+1} is missing a mountpoint.`); 
-                    switchActiveWorkspaceModule(2); return false; 
-                }
-                if (p.size <= 0 || isNaN(p.size)) { 
-                    displayError('disk-error', `Partition row ${i+1} has an invalid allocation size.`); 
-                    switchActiveWorkspaceModule(2); return false; 
-                }
-                if (p.mountpoint === "/") hasRoot = true;
-                if (p.mountpoint.startsWith("/boot")) hasBoot = true;
-
-                if (p.unit === 'MiB') allocatedBytes += p.size * 1024 * 1024;
-                else if (p.unit === 'GiB') allocatedBytes += p.size * 1024 * 1024 * 1024;
-                else if (p.unit === 'Percent') allocatedBytes += (usableBytes - allocatedBytes) * (p.size / 100);
+            if (index === 6) { 
+                if (!document.getElementById('username').value.trim()) { displayError('auth-error', "A primary username is required."); return false; }
+                if (!document.getElementById('password').value.trim()) { displayError('auth-error', "A primary password must be set."); return false; }
             }
 
-            if (!hasBoot) { displayError('disk-error', "A boot partition (mounted at /boot or /boot/efi) is strictly required."); switchActiveWorkspaceModule(2); return false; }
-            if (!hasRoot) { displayError('disk-error', "A root partition (mounted at /) is strictly required."); switchActiveWorkspaceModule(2); return false; }
-            if (allocatedBytes > usableBytes + (5 * 1024 * 1024)) { 
-                displayError('disk-error', "Partition allocations mathematically exceed the total physical capacity of the drive."); 
-                switchActiveWorkspaceModule(2); return false; 
-            }
-
-            // 2. Credentials Validation
-            if (!document.getElementById('username').value.trim()) { 
-                displayError('auth-error', "A primary username is required to safely administer the system."); 
-                switchActiveWorkspaceModule(6); return false; 
-            }
-            if (!document.getElementById('password').value.trim()) { 
-                displayError('auth-error', "A primary user password must be set."); 
-                switchActiveWorkspaceModule(6); return false; 
-            }
-
-            // 3. Network Validation
-            if (!document.getElementById('hostname').value.trim()) { 
-                displayError('net-error', "System requires a valid hostname."); 
-                switchActiveWorkspaceModule(8); return false; 
+            if (index === 8) { 
+                if (!document.getElementById('hostname').value.trim()) { displayError('net-error', "A valid hostname is required."); return false; }
             }
 
             return true;
+        }
+
+        function validateAll() {
+            return validateStep(2) && validateStep(6) && validateStep(8);
         }
 
         function switchActiveWorkspaceModule(targetIndex) {
@@ -388,11 +419,9 @@
             if (activeIndex === MODULES.length - 1) {
                 nextBtn.innerText = "Start Installation";
                 nextBtn.className = "bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-sm shadow-md transition-colors";
-                nextBtn.onclick = () => { if(validateAll()) transmitRuntimeJSONToEngine(); };
             } else {
                 nextBtn.innerText = "Continue";
                 nextBtn.className = "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors";
-                nextBtn.onclick = () => switchActiveWorkspaceModule(activeIndex + 1);
             }
         }
 
@@ -403,8 +432,8 @@
                 const row = document.createElement('div');
                 row.className = "flex gap-2 items-center";
                 row.innerHTML = `
-                    <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] border border-slate-300 p-2 rounded-md text-xs outline-none focus:border-blue-500 font-mono shadow-sm" placeholder="/mount">
-                    <select onchange="partitions[${i}].fs=this.value" class="w-[30%] border border-slate-300 p-2 bg-white rounded-md text-xs outline-none focus:border-blue-500 shadow-sm">
+                    <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value; hideErrors();" class="w-[30%] border border-slate-300 p-2 rounded-md text-xs outline-none focus:border-blue-500 font-mono shadow-sm" placeholder="/mount">
+                    <select onchange="partitions[${i}].fs=this.value; hideErrors();" class="w-[30%] border border-slate-300 p-2 bg-white rounded-md text-xs outline-none focus:border-blue-500 shadow-sm">
                         <option value="fat32" ${p.fs=='fat32'?'selected':''}>fat32</option>
                         <option value="ext4" ${p.fs=='ext4'?'selected':''}>ext4</option>
                         <option value="btrfs" ${p.fs=='btrfs'?'selected':''}>btrfs</option>
@@ -412,8 +441,8 @@
                         <option value="linux-swap" ${p.fs=='linux-swap'?'selected':''}>swap</option>
                     </select>
                     <div class="w-[30%] flex border border-slate-300 rounded-md overflow-hidden bg-white shadow-sm">
-                        <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] p-2 text-xs outline-none border-r border-slate-200 font-mono" min="1">
-                        <select onchange="partitions[${i}].unit=this.value" class="w-[45%] bg-slate-50 text-[11px] outline-none px-1">
+                        <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value); hideErrors();" class="w-[55%] p-2 text-xs outline-none border-r border-slate-200 font-mono" min="1">
+                        <select onchange="partitions[${i}].unit=this.value; hideErrors();" class="w-[45%] bg-slate-50 text-[11px] outline-none px-1">
                             <option value="MiB" ${p.unit=='MiB'?'selected':''}>MB</option>
                             <option value="GiB" ${p.unit=='GiB'?'selected':''}>GB</option>
                             <option value="Percent" ${p.unit=='Percent'?'selected':''}>%</option>
@@ -431,6 +460,7 @@
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
             document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-3 text-sm font-medium border border-slate-200 rounded-lg cursor-pointer bg-white text-slate-600 transition-all hover:border-blue-300 shadow-sm");
             el.className = "disk-item p-3 text-sm font-bold border-2 border-blue-500 rounded-lg cursor-pointer text-blue-700 bg-blue-50 shadow-sm";
+            hideErrors();
         }
 
         function selectDesktopProfileShell(val, el) {
@@ -441,9 +471,26 @@
 
         function registerGlobalEventHooks() {
             document.getElementById('btn-next-step').addEventListener('click', () => {
-                if (activeIndex < MODULES.length - 1) switchActiveWorkspaceModule(activeIndex + 1);
+                if (activeIndex === MODULES.length - 1) {
+                    if (validateAll()) transmitRuntimeJSONToEngine();
+                } else {
+                    if (validateStep(activeIndex)) switchActiveWorkspaceModule(activeIndex + 1);
+                }
             });
-            document.getElementById('btn-back-step').addEventListener('click', () => switchActiveWorkspaceModule(activeIndex - 1));
+
+            document.getElementById('btn-back-step').addEventListener('click', () => {
+                hideErrors();
+                if (activeIndex > 0) switchActiveWorkspaceModule(activeIndex - 1);
+            });
+
+            document.getElementById('mobile-step-select').addEventListener('change', (e) => {
+                const target = parseInt(e.target.value);
+                if (validateStep(activeIndex)) {
+                    switchActiveWorkspaceModule(target);
+                } else {
+                    document.getElementById('mobile-step-select').value = activeIndex;
+                }
+            });
             
             document.getElementById('btn-reboot').addEventListener('click', async () => {
                 document.getElementById('btn-reboot').innerText = "Rebooting Hardware...";
@@ -493,18 +540,29 @@
         async function transmitRuntimeJSONToEngine() {
             document.getElementById('nav-footer').style.display = 'none';
             document.getElementById('deploy-title').innerText = "Installing Arch Linux";
-            document.getElementById('progress-msg').innerText = "Unmounting old partitions and compiling system structure...";
+            document.getElementById('progress-msg').innerText = "Re-allocating sector blocks and writing system definitions...";
 
-            let currentStartBytes = 1048576; 
-            let usableDiskBytes = selectedDiskBytes - 1048576; 
-
+            // START: Explicit JSON Mathematics Engine
+            let currentStartBytes = 1048576; // Start disk at 1MiB offset for GPT headers
             let btrfsConfigured = false;
+            
+            // First, calculate all non-percent bytes to find the remaining pool for % calculations
+            let fixedBytes = 0;
+            partitions.forEach(p => {
+                if (p.unit === 'MiB') fixedBytes += p.size * 1024 * 1024;
+                if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
+            });
+            
+            let usableDiskBytes = selectedDiskBytes - 1048576; // Leave 1MiB buffer tail
+            let remainingPool = usableDiskBytes - currentStartBytes - fixedBytes;
+
             const partsPayload = partitions.map(p => {
                 let pSizeB = 0;
-                if(p.unit === 'Percent') pSizeB = Math.floor((usableDiskBytes - currentStartBytes) * (p.size / 100));
+                if(p.unit === 'Percent') pSizeB = Math.floor(remainingPool * (p.size / 100));
                 else if(p.unit === 'MiB') pSizeB = p.size * 1024 * 1024;
                 else if(p.unit === 'GiB') pSizeB = p.size * 1024 * 1024 * 1024;
 
+                // Force strictly aligned 512-byte sector block offsets
                 pSizeB = Math.floor(pSizeB / 512) * 512;
 
                 const isBoot = (p.mountpoint === '/boot' || p.mountpoint === '/boot/efi' || p.fs === 'fat32');
@@ -512,8 +570,25 @@
                 if(isBtrfs) btrfsConfigured = true;
                 
                 const btrfsVols = (isBtrfs && p.mountpoint === '/') ? [ { "mountpoint": "/", "name": "@" }, { "mountpoint": "/home", "name": "@home" }, { "mountpoint": "/var/log", "name": "@log" }, { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" } ] : [];
-                const pObj = { "obj_id": p.id, "status": "create", "type": "primary", "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, "fs_type": p.fs, "mountpoint": (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint, "mount_options": isBtrfs ? ["compress=zstd"] : [], "flags": isBoot ? ["boot"] : [], "dev_path": null, "btrfs": btrfsVols };
-                currentStartBytes += pSizeB; return pObj;
+                
+                const finalMountPoint = (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint;
+                
+                const pObj = { 
+                    "obj_id": p.id, 
+                    "status": "create", 
+                    "type": "primary", 
+                    "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, 
+                    "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, 
+                    "fs_type": p.fs, 
+                    "mountpoint": finalMountPoint, 
+                    "mount_options": isBtrfs ? ["compress=zstd"] : [], 
+                    "flags": isBoot ? ["boot"] : [], 
+                    "dev_path": null, 
+                    "btrfs": btrfsVols 
+                };
+                
+                currentStartBytes += pSizeB; 
+                return pObj;
             });
 
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
@@ -555,7 +630,7 @@
 
             const credsPayload = { "root_enc_password": null, "users": [{ "username": document.getElementById('username').value, "enc_password": null, "password": document.getElementById('password').value, "groups": ["wheel"], "sudo": true }] };
             const rootPass = document.getElementById('root_password').value;
-            if (rootPass) credsPayload["root-password"] = rootPass;
+            if (rootPass) credsPayload["root_password"] = rootPass;
 
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             initializeLiveProgressEventStream();

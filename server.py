@@ -37,9 +37,9 @@ def get_system_telemetry():
     return telemetry
 
 def run_archinstall():
-    # FIX: Cleanly unmount any orphaned partitions from previous failed attempts
-    update_state(2, "Cleaning orphaned mount points...", "running")
-    os.system('umount -R /mnt >> /tmp/archinstall-webui.log 2>&1')
+    # FIX: Force a lazy unmount to detach busy Btrfs subvolumes from crashed runs
+    update_state(2, "Severing orphaned background mount points...", "running")
+    os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
     time.sleep(1)
 
@@ -71,7 +71,7 @@ def run_archinstall():
 
     process.wait()
     if process.returncode != 0 and install_state["status"] != "completed":
-        update_state(99, f"Archinstall process crashed. Code: {process.returncode}.", "error")
+        update_state(99, f"Archinstall crashed. Exit Code {process.returncode}. See Log.", "error")
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args): pass
