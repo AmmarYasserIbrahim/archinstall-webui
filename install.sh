@@ -80,7 +80,6 @@ while kill -0 $PYTHON_PID 2>/dev/null; do
             bar=""; for ((i=0; i<filled; i++)); do bar="${bar}#"; done
             space=""; for ((i=0; i<empty; i++)); do space="${space}-"; done
             
-            # Format text explicitly with error handling colors
             if [ "$status" = "error" ]; then
                 printf "\r\e[K\e[1;31m[\e[1;31m%s\e[1;30m%s\e[1;31m]\e[0m \e[1;31m%3d%%\e[0m \e[1;31m%s\e[0m" "$bar" "$space" "$pct" "$msg"
                 echo -e "\n"

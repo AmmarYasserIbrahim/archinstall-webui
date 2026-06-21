@@ -37,6 +37,12 @@ def get_system_telemetry():
     return telemetry
 
 def run_archinstall():
+    # FIX: Cleanly unmount any orphaned partitions from previous failed attempts
+    update_state(2, "Cleaning orphaned mount points...", "running")
+    os.system('umount -R /mnt >> /tmp/archinstall-webui.log 2>&1')
+    os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
+    time.sleep(1)
+
     update_state(5, "Synchronizing pacman mirror repositories...", "running")
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
     
