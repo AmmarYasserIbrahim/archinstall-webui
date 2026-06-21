@@ -12,10 +12,15 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Custom range slider styling */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #2563eb; cursor: pointer; margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
     </style>
 </head>
 <body class="bg-slate-100 font-sans fixed inset-0 overflow-hidden flex items-center justify-center p-0 lg:p-4 text-slate-800">
-    <div class="bg-white lg:rounded-2xl shadow-xl w-full max-w-5xl h-full flex flex-col lg:flex-row overflow-hidden border border-slate-200">
+    <div class="bg-white lg:rounded-2xl shadow-2xl w-full max-w-5xl h-full flex flex-col lg:flex-row overflow-hidden border border-slate-200">
         
         <div class="w-full lg:w-[280px] bg-slate-50 flex flex-col p-4 border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0">
             <div class="flex items-center gap-3 mb-4">
@@ -69,28 +74,40 @@
                     </div>
 
                     <div id="panel-mirrors" class="config-panel space-y-5 hidden">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Mirror Region</label>
-                            <select id="mirror_region" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm mb-4">
-                                <option value="Worldwide">Worldwide</option>
-                                <option value="United States">United States</option>
-                                <option value="United Kingdom">United Kingdom</option>
-                                <option value="Germany">Germany</option>
-                            </select>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Mirror Region</label>
+                                <select id="mirror_region" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                    <option value="Worldwide">Worldwide</option>
+                                    <option value="United States">United States</option>
+                                    <option value="United Kingdom">United Kingdom</option>
+                                    <option value="Germany">Germany</option>
+                                    <option value="France">France</option>
+                                    <option value="Canada">Canada</option>
+                                    <option value="Australia">Australia</option>
+                                    <option value="Japan">Japan</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Pacman Parallel Downloads: <span id="dl-count" class="text-blue-600 font-black">5</span></label>
+                                <div class="bg-white border border-slate-300 rounded-lg p-3 shadow-sm flex items-center">
+                                    <input type="range" id="parallel_downloads" min="1" max="10" value="5" class="w-full" oninput="document.getElementById('dl-count').innerText = this.value">
+                                </div>
+                            </div>
                         </div>
                         <div class="border-t border-slate-200 pt-4">
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Optional Repositories</label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="multilib" class="repo-cb text-blue-600 rounded"> multilib (32-bit)</label>
-                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="multilib-testing" class="repo-cb text-blue-600 rounded"> multilib-testing</label>
-                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="core-testing" class="repo-cb text-blue-600 rounded"> core-testing</label>
-                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="extra-testing" class="repo-cb text-blue-600 rounded"> extra-testing</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="multilib" class="repo-cb text-blue-600 rounded"> multilib (32-bit)</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="multilib-testing" class="repo-cb text-blue-600 rounded"> multilib-testing</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="core-testing" class="repo-cb text-blue-600 rounded"> core-testing</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="extra-testing" class="repo-cb text-blue-600 rounded"> extra-testing</label>
                             </div>
                         </div>
                     </div>
 
                     <div id="panel-disk" class="config-panel space-y-6 hidden">
-                        <div id="disk-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium"></div>
+                        <div id="disk-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
 
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Target Block Storage</label>
@@ -115,7 +132,7 @@
                             <input type="checkbox" id="swap_enabled" checked class="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
                             <div>
                                 <span class="text-sm font-bold text-slate-800 block">Allocate zRAM Swap</span>
-                                <span class="text-xs text-slate-500 block mt-1">Creates a dynamic, compressed block device in RAM to serve as high-speed swap space.</span>
+                                <span class="text-xs text-slate-500 block mt-1">Creates a dynamic, compressed block device in RAM to serve as high-speed swap space. Recommended for optimal system performance.</span>
                             </div>
                         </label>
                     </div>
@@ -131,25 +148,27 @@
                     <div id="panel-kernel" class="config-panel hidden">
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Linux Kernel Trunks (Multi-Select)</label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux" class="kernel-cb text-blue-600 rounded" checked> linux (Standard)</label>
-                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux-lts" class="kernel-cb text-blue-600 rounded"> linux-lts</label>
-                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux-zen" class="kernel-cb text-blue-600 rounded"> linux-zen</label>
-                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux-hardened" class="kernel-cb text-blue-600 rounded"> linux-hardened</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="linux" class="kernel-cb text-blue-600 rounded" checked> linux (Standard)</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="linux-lts" class="kernel-cb text-blue-600 rounded"> linux-lts</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="linux-zen" class="kernel-cb text-blue-600 rounded"> linux-zen</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="linux-hardened" class="kernel-cb text-blue-600 rounded"> linux-hardened</label>
                         </div>
                     </div>
 
                     <div id="panel-auth" class="config-panel space-y-5 hidden">
-                        <div id="auth-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium"></div>
+                        <div id="auth-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Root Password</label>
                             <input type="password" id="root_password" placeholder="Leave blank to disable root account" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-red-400 shadow-sm">
                         </div>
                         <div class="border-t border-slate-200 pt-5">
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Primary User Account</label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                 <input type="text" id="username" placeholder="Username" class="border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                                 <input type="password" id="password" placeholder="Password" class="border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                             </div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 mt-1">Additional Groups (Comma Separated)</label>
+                            <input type="text" id="user_groups" value="wheel" placeholder="e.g. wheel, docker, libvirt" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm font-mono text-slate-600">
                         </div>
                     </div>
 
@@ -168,10 +187,10 @@
                     </div>
 
                     <div id="panel-network" class="config-panel space-y-5 hidden">
-                        <div id="net-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium"></div>
+                        <div id="net-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Hostname</label>
-                            <input type="text" id="hostname" value="archlinux" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                            <input type="text" id="hostname" value="archlinux" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm font-mono">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Network Manager</label>
@@ -183,9 +202,14 @@
                     </div>
 
                     <div id="panel-time" class="config-panel space-y-5 hidden">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Timezone</label>
-                            <input type="text" id="timezone" value="UTC" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Timezone</label>
+                                <input type="text" id="timezone" value="UTC" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                            </div>
+                            <div class="flex items-end pb-1">
+                                <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white cursor-pointer hover:border-blue-300 shadow-sm w-full"><input type="checkbox" id="ntp_sync" checked class="text-blue-600 rounded focus:ring-blue-500"> Auto Time Sync (NTP)</label>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Additional Packages (Comma Separated)</label>
@@ -228,7 +252,7 @@
     <script>
         const MODULES = [
             { id: 'locales', label: 'Language & Locales' },
-            { id: 'mirrors', label: 'Mirrors & Repositories' },
+            { id: 'mirrors', label: 'Mirrors & Pacman' },
             { id: 'disk', label: 'Disk Configuration' },
             { id: 'swap', label: 'Swap' },
             { id: 'boot', label: 'Bootloader' },
@@ -315,7 +339,6 @@
             if (el) { el.innerText = msg; el.classList.remove('hidden'); }
         }
 
-        // --- MATH/VALIDATION ENGINE (Rewritten) ---
         function validateStep(index) {
             hideErrors();
 
@@ -330,10 +353,7 @@
                 }
                 
                 let hasRoot = false, hasBoot = false;
-                let fixedBytes = 0;
-                let pctTotal = 0;
-                
-                // Absolute maximum space available minus safety headers
+                let fixedBytes = 0, pctTotal = 0;
                 let usableBytes = selectedDiskBytes - (2 * 1024 * 1024); 
 
                 for (let i=0; i<partitions.length; i++) {
@@ -364,14 +384,8 @@
                 if (!hasBoot) { displayError('disk-error', "A boot partition (mounted at /boot) is strictly required."); return false; }
                 if (!hasRoot) { displayError('disk-error', "A root partition (mounted at /) is strictly required."); return false; }
                 
-                if (pctTotal > 100) {
-                    displayError('disk-error', "Percentage allocations mathematically exceed 100%."); 
-                    return false;
-                }
-                if (fixedBytes > usableBytes) { 
-                    displayError('disk-error', "The absolute file sizes exceed the physical capacity of the drive."); 
-                    return false; 
-                }
+                if (pctTotal > 100) { displayError('disk-error', "Percentage allocations mathematically exceed 100%."); return false; }
+                if (fixedBytes > usableBytes) { displayError('disk-error', "The absolute file sizes exceed the physical capacity of the drive."); return false; }
             }
             
             if (index === 6) { 
@@ -542,18 +556,16 @@
             document.getElementById('deploy-title').innerText = "Installing Arch Linux";
             document.getElementById('progress-msg').innerText = "Re-allocating sector blocks and writing system definitions...";
 
-            // START: Explicit JSON Mathematics Engine
-            let currentStartBytes = 1048576; // Start disk at 1MiB offset for GPT headers
+            let currentStartBytes = 1048576; 
             let btrfsConfigured = false;
             
-            // First, calculate all non-percent bytes to find the remaining pool for % calculations
             let fixedBytes = 0;
             partitions.forEach(p => {
                 if (p.unit === 'MiB') fixedBytes += p.size * 1024 * 1024;
                 if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
             });
             
-            let usableDiskBytes = selectedDiskBytes - 1048576; // Leave 1MiB buffer tail
+            let usableDiskBytes = selectedDiskBytes - 1048576; 
             let remainingPool = usableDiskBytes - currentStartBytes - fixedBytes;
 
             const partsPayload = partitions.map(p => {
@@ -562,7 +574,6 @@
                 else if(p.unit === 'MiB') pSizeB = p.size * 1024 * 1024;
                 else if(p.unit === 'GiB') pSizeB = p.size * 1024 * 1024 * 1024;
 
-                // Force strictly aligned 512-byte sector block offsets
                 pSizeB = Math.floor(pSizeB / 512) * 512;
 
                 const isBoot = (p.mountpoint === '/boot' || p.mountpoint === '/boot/efi' || p.fs === 'fat32');
@@ -570,22 +581,9 @@
                 if(isBtrfs) btrfsConfigured = true;
                 
                 const btrfsVols = (isBtrfs && p.mountpoint === '/') ? [ { "mountpoint": "/", "name": "@" }, { "mountpoint": "/home", "name": "@home" }, { "mountpoint": "/var/log", "name": "@log" }, { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" } ] : [];
-                
                 const finalMountPoint = (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint;
                 
-                const pObj = { 
-                    "obj_id": p.id, 
-                    "status": "create", 
-                    "type": "primary", 
-                    "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, 
-                    "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, 
-                    "fs_type": p.fs, 
-                    "mountpoint": finalMountPoint, 
-                    "mount_options": isBtrfs ? ["compress=zstd"] : [], 
-                    "flags": isBoot ? ["boot"] : [], 
-                    "dev_path": null, 
-                    "btrfs": btrfsVols 
-                };
+                const pObj = { "obj_id": p.id, "status": "create", "type": "primary", "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, "fs_type": p.fs, "mountpoint": finalMountPoint, "mount_options": isBtrfs ? ["compress=zstd"] : [], "flags": isBoot ? ["boot"] : [], "dev_path": null, "btrfs": btrfsVols };
                 
                 currentStartBytes += pSizeB; 
                 return pObj;
@@ -594,6 +592,10 @@
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
             const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
             const extraPkgs = document.getElementById('extra_packages').value.split(',').map(s => s.trim()).filter(s => s);
+            
+            // Extract custom comma-separated user groups, trim them, filter out empties, and always append 'wheel'
+            const userGroupsRaw = document.getElementById('user_groups').value.split(',').map(s => s.trim()).filter(s => s);
+            if(!userGroupsRaw.includes('wheel')) userGroupsRaw.push('wheel');
 
             const configPayload = {
                 "version": "4.3", "archinstall-language": "English",
@@ -605,7 +607,8 @@
                 "locale_config": { "kb_layout": document.getElementById('kb_layout').value, "sys_enc": "UTF-8", "sys_lang": document.getElementById('sys_locale').value },
                 "mirror_config": { "mirror_regions": {}, "optional_repositories": optRepos },
                 "network_config": { "type": document.getElementById('net_type').value },
-                "ntp": true, "pacman_config": { "color": true, "parallel_downloads": 5 },
+                "ntp": document.getElementById('ntp_sync').checked, 
+                "pacman_config": { "color": true, "parallel_downloads": parseInt(document.getElementById('parallel_downloads').value) },
                 "swap": document.getElementById('swap_enabled').checked ? { "enabled": true, "algorithm": "zstd" } : { "enabled": false },
                 "timezone": document.getElementById('timezone').value,
                 "packages": extraPkgs
@@ -628,9 +631,9 @@
                 configPayload.profile_config = { "gfx_driver": "All open-source", "greeter": "sddm", "profile": { "custom_settings": cSettings, "details": [selectedDesktopVal], "main": mainType } };
             }
 
-            const credsPayload = { "root_enc_password": null, "users": [{ "username": document.getElementById('username').value, "enc_password": null, "password": document.getElementById('password').value, "groups": ["wheel"], "sudo": true }] };
+            const credsPayload = { "root_enc_password": null, "users": [{ "username": document.getElementById('username').value, "enc_password": null, "password": document.getElementById('password').value, "groups": userGroupsRaw, "sudo": true }] };
             const rootPass = document.getElementById('root_password').value;
-            if (rootPass) credsPayload["root_password"] = rootPass;
+            if (rootPass) credsPayload["root-password"] = rootPass;
 
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             initializeLiveProgressEventStream();
@@ -649,7 +652,7 @@
                     document.getElementById('progress-msg').className = "text-sm font-medium text-red-500 mb-8";
                     document.getElementById('progress-pct').className = "text-xl font-black text-red-600";
                     document.getElementById('progress-bar-fill').className = "bg-red-600 h-full rounded-full w-full";
-                    document.getElementById('nav-footer').style.display = 'flex'; // Give them the back button back
+                    document.getElementById('nav-footer').style.display = 'flex';
                     stream.close();
                 }
                 if(data.status === "completed") {
