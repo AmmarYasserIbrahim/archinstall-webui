@@ -37,11 +37,34 @@ def get_system_telemetry():
     return telemetry
 
 def run_archinstall():
-    # FIX: Force a lazy unmount to detach busy Btrfs subvolumes from crashed runs
-    update_state(2, "Severing orphaned background mount points...", "running")
-    os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
+    update_state(2, "Clearing disk locks and orphaned mounts...", "running")
+    
+    # 1. Global swap and mount clearing
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
-    time.sleep(1)
+    os.system('umount -R /mnt >> /tmp/archinstall-webui.log 2>&1')
+    
+    # 2. Aggressive Target Disk Zapping
+    try:
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+            devices = config.get('disk_config', {}).get('device_modifications', [])
+            for mod in devices:
+                dev = mod.get('device')
+                if dev:
+                    # Unmount any specific partitions on this drive
+                    os.system(f'umount -l {dev}* >> /tmp/archinstall-webui.log 2>&1')
+                    # Destroy filesystem signatures so udev releases it
+                    os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
+                    os.system(f'wipefs -af {dev} >> /tmp/archinstall-webui.log 2>&1')
+                    # Zap GPT/MBR partition tables completely
+                    os.system(f'sgdisk --zap-all {dev} >> /tmp/archinstall-webui.log 2>&1')
+                    # Force the kernel to immediately re-read the now-empty block device
+                    os.system(f'partprobe {dev} >> /tmp/archinstall-webui.log 2>&1')
+    except Exception as e:
+        pass
+
+    # Give the kernel and udev a moment to settle down after the wipe
+    time.sleep(2) 
 
     update_state(5, "Synchronizing pacman mirror repositories...", "running")
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
