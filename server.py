@@ -94,11 +94,14 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             post_data = json.loads(self.rfile.read(length))
             with open(CONFIG_PATH, 'w') as f: json.dump(post_data.get('config', {}), f)
             with open(CREDS_PATH, 'w') as f: json.dump(post_data.get('creds', {}), f)
-            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()  # Fixed here
             self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
             threading.Thread(target=run_archinstall).start()
         elif path == '/api/reboot':
-            self.send_response(200); end_headers()
+            self.send_response(200)
+            self.end_headers()  # Fixed here
             threading.Thread(target=lambda: (time.sleep(1.5), os.system('systemctl reboot'))).start()
 
 class ReuseServer(socketserver.ThreadingTCPServer): allow_reuse_address = True
