@@ -11,8 +11,17 @@ PORT = 5000
 CONFIG_PATH = '/tmp/config.json'
 CREDS_PATH = '/tmp/creds.json'
 LOG_FILE = '/tmp/archinstall-webui.log'
+STATE_FILE = '/tmp/archinstall-state.txt'
 
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
+
+def update_state(pct, msg, status):
+    global install_state
+    install_state = {"percentage": pct, "message": msg, "status": status}
+    try:
+        with open(STATE_FILE, 'w') as f:
+            f.write(f"{pct}|{msg}|{status}\n")
+    except: pass
 
 def get_system_telemetry():
     telemetry = {"cpu": "x86_64 Architecture", "boot_mode": "BIOS", "hardware": {}}
@@ -28,14 +37,12 @@ def get_system_telemetry():
     return telemetry
 
 def run_archinstall():
-    global install_state
-    install_state = {"percentage": 5, "message": "Synchronizing pacman mirror repositories...", "status": "running"}
+    update_state(5, "Synchronizing pacman mirror repositories...", "running")
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
     
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
-    # Text mapping tables matching console strings to percentage keys
     indicators = [
         ("formatting", 15, "Formatting storage block partitions..."),
         ("waiting for time sync", 22, "Synchronizing network precision NTP clocks..."),
@@ -54,11 +61,11 @@ def run_archinstall():
             
             for key, pct, msg in indicators:
                 if key in lower_line and install_state["percentage"] < pct:
-                    install_state = {"percentage": pct, "message": msg, "status": "running" if pct < 100 else "completed"}
+                    update_state(pct, msg, "running" if pct < 100 else "completed")
 
     process.wait()
     if process.returncode != 0 and install_state["status"] != "completed":
-        install_state = {"percentage": 99, "message": f"Archinstall process crashed. Code: {process.returncode}.", "status": "error"}
+        update_state(99, f"Archinstall process crashed. Code: {process.returncode}.", "error")
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args): pass
@@ -118,4 +125,5 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
 class ReuseServer(socketserver.ThreadingTCPServer): allow_reuse_address = True
 
 if __name__ == '__main__':
+    update_state(0, "Awaiting WebUI configuration...", "idle")
     with ReuseServer(("", PORT), APIHandler) as httpd: httpd.serve_forever()

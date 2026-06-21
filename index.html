@@ -16,13 +16,13 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-2 lg:p-4 text-gray-800">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-5xl h-[95vh] lg:h-[700px] flex flex-col lg:flex-row overflow-hidden border border-gray-200">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-5xl h-[95vh] lg:h-[720px] flex flex-col lg:flex-row overflow-hidden border border-gray-200">
         
         <div class="w-full lg:w-[280px] bg-slate-50 flex flex-col p-4 border-b lg:border-b-0 lg:border-r border-gray-200 shrink-0">
             <div class="flex items-center gap-3 mb-4">
                 <div class="bg-blue-600 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center shadow-md">A</div>
                 <div>
-                    <span class="font-bold tracking-wide text-sm text-slate-800 block">Archinstall WebUI</span>
+                    <span class="font-bold tracking-wide text-sm text-slate-800 block">Arch WebUI</span>
                     <span class="text-[10px] text-slate-500 font-mono block" id="target-cpu">Connecting...</span>
                 </div>
             </div>
@@ -31,8 +31,7 @@
                 <select id="mobile-step-select" class="w-full bg-white border border-slate-300 text-sm font-semibold rounded-md px-3 py-2 text-slate-700 outline-none focus:border-blue-500 shadow-sm"></select>
             </div>
 
-            <div class="flex-grow overflow-y-auto custom-scrollbar hidden lg:block pr-2 space-y-1" id="menu-desktop-nav">
-                </div>
+            <div class="flex-grow overflow-y-auto custom-scrollbar hidden lg:block pr-2 space-y-1" id="menu-desktop-nav"></div>
         </div>
 
         <div class="flex-1 flex flex-col bg-white overflow-hidden">
@@ -54,12 +53,23 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">System Locales</label>
                             <select id="sys_locale" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm mb-3">
-                                <option value="en_US.UTF-8">en_US.UTF-8 (US English)</option>
-                                <option value="en_GB.UTF-8">en_GB.UTF-8 (UK English)</option>
+                                <option value="en_US.UTF-8">en_US.UTF-8</option>
+                                <option value="en_GB.UTF-8">en_GB.UTF-8</option>
+                                <option value="de_DE.UTF-8">de_DE.UTF-8</option>
+                                <option value="fr_FR.UTF-8">fr_FR.UTF-8</option>
                             </select>
                             <select id="kb_layout" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <option value="us">Keyboard Layout: US</option>
-                                <option value="uk">Keyboard Layout: UK</option>
+                                <option value="us">US - United States</option>
+                                <option value="uk">UK - United Kingdom</option>
+                                <option value="de">DE - German</option>
+                                <option value="fr">FR - French</option>
+                                <option value="es">ES - Spanish</option>
+                                <option value="it">IT - Italian</option>
+                                <option value="br">BR - Brazilian</option>
+                                <option value="ru">RU - Russian</option>
+                                <option value="jp">JP - Japanese</option>
+                                <option value="se">SE - Swedish</option>
+                                <option value="dk">DK - Danish</option>
                             </select>
                         </div>
                     </div>
@@ -67,28 +77,40 @@
                     <div id="panel-mirrors" class="config-panel space-y-5 hidden">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Mirror Region</label>
-                            <select id="mirror_region" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <option value="Worldwide">Worldwide (geo.mirror.pkgbuild.com)</option>
+                            <select id="mirror_region" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm mb-4">
+                                <option value="Worldwide">Worldwide</option>
                                 <option value="United States">United States</option>
+                                <option value="United Kingdom">United Kingdom</option>
+                                <option value="Germany">Germany</option>
+                                <option value="France">France</option>
+                                <option value="Canada">Canada</option>
+                                <option value="Australia">Australia</option>
+                                <option value="Japan">Japan</option>
                             </select>
+                        </div>
+                        <div class="border-t border-slate-200 pt-4">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Optional Repositories</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="multilib" class="repo-cb text-blue-600 rounded"> multilib (32-bit)</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="multilib-testing" class="repo-cb text-blue-600 rounded"> multilib-testing</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="core-testing" class="repo-cb text-blue-600 rounded"> core-testing</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="extra-testing" class="repo-cb text-blue-600 rounded"> extra-testing</label>
+                            </div>
                         </div>
                     </div>
 
                     <div id="panel-disk" class="config-panel space-y-6 hidden">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Target Block Storage</label>
-                            <div class="border border-slate-300 rounded-lg overflow-y-auto max-h-40 bg-white shadow-sm flex flex-col gap-1 p-1" id="disk-list">
-                                </div>
+                            <div class="border border-slate-300 rounded-lg overflow-y-auto max-h-40 bg-white shadow-sm flex flex-col gap-1 p-1" id="disk-list"></div>
                         </div>
-                        
-                        <div class="border-t border-slate-200 pt-5">
+                        <div class="border-t border-slate-200 pt-4">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Partition Layout</label>
                                 <button type="button" onclick="addPartitionRow()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-md font-semibold hover:bg-slate-700 transition-colors shadow-sm">+ Add Mount</button>
                             </div>
                             <div class="bg-white border border-slate-200 rounded-lg shadow-sm p-3">
-                                <div id="partition-list" class="space-y-2">
-                                    </div>
+                                <div id="partition-list" class="space-y-2"></div>
                             </div>
                         </div>
                     </div>
@@ -98,7 +120,7 @@
                             <input type="checkbox" id="swap_enabled" checked class="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
                             <div>
                                 <span class="text-sm font-bold text-slate-800 block">Allocate zRAM Swap</span>
-                                <span class="text-xs text-slate-500 block mt-1">Creates a dynamic, compressed block device in RAM to serve as high-speed swap space. Recommended for all modern systems.</span>
+                                <span class="text-xs text-slate-500 block mt-1">Creates a dynamic, compressed block device in RAM to serve as high-speed swap space.</span>
                             </div>
                         </label>
                     </div>
@@ -112,12 +134,13 @@
                     </div>
 
                     <div id="panel-kernel" class="config-panel hidden">
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Linux Kernel</label>
-                        <select id="kernel" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                            <option value="linux">linux (Standard Core)</option>
-                            <option value="linux-lts">linux-lts (Long Term Support)</option>
-                            <option value="linux-zen">linux-zen (Desktop Optimized)</option>
-                        </select>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Linux Kernel Trunks (Multi-Select)</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux" class="kernel-cb text-blue-600 rounded" checked> linux (Standard)</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux-lts" class="kernel-cb text-blue-600 rounded"> linux-lts</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux-zen" class="kernel-cb text-blue-600 rounded"> linux-zen</label>
+                            <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer"><input type="checkbox" value="linux-hardened" class="kernel-cb text-blue-600 rounded"> linux-hardened</label>
+                        </div>
                     </div>
 
                     <div id="panel-auth" class="config-panel space-y-5 hidden">
@@ -167,11 +190,15 @@
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Timezone</label>
                             <input type="text" id="timezone" value="UTC" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Additional Packages (Comma Separated)</label>
+                            <input type="text" id="extra_packages" placeholder="e.g. vim, htop, git, wget" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm font-mono">
+                        </div>
                         <div class="border-t border-slate-200 pt-5">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Base System Packages</label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white cursor-pointer hover:border-blue-300 shadow-sm"><input type="checkbox" id="srv_bluetooth" checked class="text-blue-600 rounded focus:ring-blue-500"> Bluetooth Tools</label>
                                 <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white cursor-pointer hover:border-blue-300 shadow-sm"><input type="checkbox" id="srv_firewall" checked class="text-blue-600 rounded focus:ring-blue-500"> UFW Firewall</label>
+                                <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white cursor-pointer hover:border-blue-300 shadow-sm"><input type="checkbox" id="srv_cups" checked class="text-blue-600 rounded focus:ring-blue-500"> CUPS Printing</label>
                             </div>
                         </div>
                     </div>
@@ -211,7 +238,7 @@
             { id: 'kernel', label: 'Kernels' },
             { id: 'auth', label: 'Authentication' },
             { id: 'profile', label: 'Profile' },
-            { id: 'network', label: 'Network configuration' },
+            { id: 'network', label: 'Network Configuration' },
             { id: 'time', label: 'Timezone & Packages' },
             { id: 'deploy', label: 'Install' }
         ];
@@ -222,7 +249,7 @@
         let selectedDesktopVal = "none";
 
         let partitions = [
-            { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 512, unit: 'MiB' },
+            { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 1024, unit: 'MiB' },
             { id: genUUID(), mountpoint: '/', fs: 'btrfs', size: 100, unit: 'Percent' }
         ];
 
@@ -338,7 +365,7 @@
             });
         }
 
-        function addPartitionRow() { partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'ext4', size: 20, unit: 'GiB' }); renderPartitions(); }
+        function addPartitionRow() { partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'btrfs', size: 20, unit: 'GiB' }); renderPartitions(); }
 
         function selectDiskTargetVolume(val, bytes, el) {
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
@@ -425,21 +452,31 @@
                 currentStartBytes += pSizeB; return pObj;
             });
 
+            const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
+            const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
+            const extraPkgs = document.getElementById('extra_packages').value.split(',').map(s => s.trim()).filter(s => s);
+
             const configPayload = {
                 "version": "4.3", "archinstall-language": "English",
                 "app_config": { "audio_config": { "audio": document.getElementById('audio').value } },
                 "bootloader_config": { "bootloader": document.getElementById('bootloader').value, "removable": false, "uki": false },
                 "disk_config": { "config_type": "default_layout", "device_modifications": [{ "device": selectedDiskVal || "/dev/sda", "wipe": true, "partitions": partsPayload }] },
                 "hostname": document.getElementById('hostname').value,
-                "kernels": [document.getElementById('kernel').value],
+                "kernels": selKernels.length ? selKernels : ["linux"],
                 "locale_config": { "kb_layout": document.getElementById('kb_layout').value, "sys_enc": "UTF-8", "sys_lang": document.getElementById('sys_locale').value },
-                "mirror_config": { "mirror_regions": {} },
+                "mirror_config": { "mirror_regions": {}, "optional_repositories": optRepos },
                 "network_config": { "type": document.getElementById('net_type').value },
                 "ntp": true, "pacman_config": { "color": true, "parallel_downloads": 5 },
                 "swap": document.getElementById('swap_enabled').checked ? { "enabled": true, "algorithm": "zstd" } : { "enabled": false },
-                "timezone": document.getElementById('timezone').value
+                "timezone": document.getElementById('timezone').value,
+                "packages": extraPkgs
             };
             configPayload.mirror_config.mirror_regions[document.getElementById('mirror_region').value] = ["https://geo.mirror.pkgbuild.com/$repo/os/$arch"];
+
+            if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
+            if (document.getElementById('srv_bluetooth') && document.getElementById('srv_bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
+            if (document.getElementById('srv_firewall') && document.getElementById('srv_firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
+            if (document.getElementById('srv_cups') && document.getElementById('srv_cups').checked) configPayload.app_config.print_service_config = { "enabled": true };
 
             if (selectedDesktopVal !== "none") {
                 let mainType = "Desktop";
