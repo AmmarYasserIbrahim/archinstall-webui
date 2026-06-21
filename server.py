@@ -41,7 +41,6 @@ def run_archinstall():
             master_log.flush()
             lower_line = line.lower()
             
-            # Fast mapping of logs to progress phrases
             mapping = {
                 "formatting": (15, "Formatting storage block devices..."),
                 "waiting for time sync": (20, "Synchronizing system hardware clocks..."),
@@ -99,7 +98,7 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
             threading.Thread(target=run_archinstall).start()
         elif path == '/api/reboot':
-            self.send_response(200); self.end_headers()
+            self.send_response(200); end_headers()
             threading.Thread(target=lambda: (time.sleep(1.5), os.system('systemctl reboot'))).start()
 
 class ReuseServer(socketserver.ThreadingTCPServer): allow_reuse_address = True

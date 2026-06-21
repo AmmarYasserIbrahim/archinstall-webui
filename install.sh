@@ -10,9 +10,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Install dependencies if missing
+# Install system dependencies if missing
 mkdir -p /var/cache/pacman/pkg
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1
+
+# Move to a predictable working path and grab the runtime assets
+mkdir -p /tmp/arch-webui && cd /tmp/arch-webui
+REPO_RAW_URL="https://raw.githubusercontent.com/AmmarYasserIbrahim/archinstall-webui/refs/heads/main"
+
+curl -sO "${REPO_RAW_URL}/server.py"
+curl -sO "${REPO_RAW_URL}/index.html"
 
 # Launch Python backend natively
 python3 server.py &
@@ -29,7 +36,7 @@ ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 \
     -R 80:localhost:5000 nokey@localhost.run >> "$LOG_FILE" 2>&1 &
 SSH_PID=$!
 
-# Resolve URLs
+# Resolve local and public URLs
 LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
 [ -z "$LOCAL_IP" ] && LOCAL_IP=$(hostname -I | awk '{print $1}')
 
