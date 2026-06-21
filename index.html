@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -15,10 +15,10 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-2 lg:p-4 text-gray-800">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-5xl h-[95vh] lg:h-[720px] flex flex-col lg:flex-row overflow-hidden border border-gray-200">
+<body class="bg-slate-100 h-screen w-screen flex items-center justify-center p-2 lg:p-4 text-slate-800">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-5xl h-full max-h-[750px] flex flex-col lg:flex-row overflow-hidden border border-slate-200">
         
-        <div class="w-full lg:w-[280px] bg-slate-50 flex flex-col p-4 border-b lg:border-b-0 lg:border-r border-gray-200 shrink-0">
+        <div class="w-full lg:w-[280px] bg-slate-50 flex flex-col p-4 border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0">
             <div class="flex items-center gap-3 mb-4">
                 <div class="bg-blue-600 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center shadow-md">A</div>
                 <div>
@@ -34,14 +34,15 @@
             <div class="flex-grow overflow-y-auto custom-scrollbar hidden lg:block pr-2 space-y-1" id="menu-desktop-nav"></div>
         </div>
 
-        <div class="flex-1 flex flex-col bg-white overflow-hidden">
-            <div class="px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-white z-10 shadow-sm">
+        <div class="flex-1 flex flex-col bg-white overflow-hidden relative">
+            
+            <div class="px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 z-10">
                 <h2 id="view-title" class="text-xl font-bold text-slate-800">Language & Locales</h2>
                 <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border border-slate-200" id="step-counter">Step 1</span>
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50">
-                <form id="installer-config-form" class="max-w-2xl mx-auto">
+                <form id="installer-config-form" class="max-w-2xl mx-auto pb-8">
                     
                     <div id="panel-locales" class="config-panel space-y-5 block">
                         <div>
@@ -64,12 +65,6 @@
                                 <option value="de">DE - German</option>
                                 <option value="fr">FR - French</option>
                                 <option value="es">ES - Spanish</option>
-                                <option value="it">IT - Italian</option>
-                                <option value="br">BR - Brazilian</option>
-                                <option value="ru">RU - Russian</option>
-                                <option value="jp">JP - Japanese</option>
-                                <option value="se">SE - Swedish</option>
-                                <option value="dk">DK - Danish</option>
                             </select>
                         </div>
                     </div>
@@ -82,10 +77,6 @@
                                 <option value="United States">United States</option>
                                 <option value="United Kingdom">United Kingdom</option>
                                 <option value="Germany">Germany</option>
-                                <option value="France">France</option>
-                                <option value="Canada">Canada</option>
-                                <option value="Australia">Australia</option>
-                                <option value="Japan">Japan</option>
                             </select>
                         </div>
                         <div class="border-t border-slate-200 pt-4">
@@ -100,6 +91,8 @@
                     </div>
 
                     <div id="panel-disk" class="config-panel space-y-6 hidden">
+                        <div id="disk-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium"></div>
+
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Target Block Storage</label>
                             <div class="border border-slate-300 rounded-lg overflow-y-auto max-h-40 bg-white shadow-sm flex flex-col gap-1 p-1" id="disk-list"></div>
@@ -144,6 +137,7 @@
                     </div>
 
                     <div id="panel-auth" class="config-panel space-y-5 hidden">
+                        <div id="auth-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium"></div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Root Password</label>
                             <input type="password" id="root_password" placeholder="Leave blank to disable root account" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-red-400 shadow-sm">
@@ -172,6 +166,7 @@
                     </div>
 
                     <div id="panel-network" class="config-panel space-y-5 hidden">
+                        <div id="net-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium"></div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Hostname</label>
                             <input type="text" id="hostname" value="archlinux" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
@@ -221,7 +216,7 @@
                 </form>
             </div>
 
-            <div id="nav-footer" class="px-6 py-4 bg-white border-t border-slate-200 flex justify-between items-center z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div id="nav-footer" class="px-6 py-4 bg-white border-t border-slate-200 flex justify-between items-center shrink-0 z-10">
                 <button type="button" id="btn-back-step" class="text-slate-500 hover:text-slate-800 font-semibold text-sm py-2 px-4 rounded-lg transition-colors invisible">Back</button>
                 <button type="button" id="btn-next-step" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors">Continue</button>
             </div>
@@ -276,7 +271,7 @@
                 navItem.className = `w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center ${index === activeIndex ? 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200' : 'text-slate-600 hover:bg-slate-200 border border-transparent'}`;
                 navItem.id = `nav-btn-${mod.id}`;
                 navItem.innerText = mod.label;
-                navItem.onclick = () => switchActiveWorkspaceModule(index);
+                navItem.onclick = () => { if (validateCurrentStep()) switchActiveWorkspaceModule(index); };
                 destNav.appendChild(navItem);
 
                 const mobOpt = document.createElement('option');
@@ -297,6 +292,69 @@
                 el.onclick = () => selectDesktopProfileShell(d, el);
                 grid.appendChild(el);
             });
+        }
+
+        function displayError(panelId, message) {
+            const errDiv = document.getElementById(panelId);
+            if (errDiv) {
+                errDiv.innerText = message;
+                errDiv.classList.remove('hidden');
+            } else {
+                alert(message);
+            }
+        }
+
+        function hideErrors() {
+            document.querySelectorAll('[id$="-error"]').forEach(el => el.classList.add('hidden'));
+        }
+
+        // --- STRICT VALIDATION GATEWAY ---
+        function validateCurrentStep() {
+            hideErrors();
+
+            if (activeIndex === 2) { // Disk Panel
+                if (!selectedDiskVal) { displayError('disk-error', "You must select a target block storage device."); return false; }
+                
+                let hasRoot = false, hasBoot = false, allocatedBytes = 0;
+                // Archinstall GPT tables require ~1MiB safety buffer at start and end of disk
+                let usableBytes = selectedDiskBytes - (2 * 1024 * 1024); 
+
+                for (let i=0; i<partitions.length; i++) {
+                    let p = partitions[i];
+                    if (!p.mountpoint || p.mountpoint.trim() === "") { 
+                        displayError('disk-error', `Partition row ${i+1} is missing a mountpoint (e.g. /home)`); return false; 
+                    }
+                    if (p.size <= 0 || isNaN(p.size)) { 
+                        displayError('disk-error', `Partition row ${i+1} has an invalid allocation size.`); return false; 
+                    }
+                    
+                    if (p.mountpoint === "/") hasRoot = true;
+                    if (p.mountpoint.startsWith("/boot")) hasBoot = true;
+
+                    if (p.unit === 'MiB') allocatedBytes += p.size * 1024 * 1024;
+                    else if (p.unit === 'GiB') allocatedBytes += p.size * 1024 * 1024 * 1024;
+                    else if (p.unit === 'Percent') allocatedBytes += (usableBytes - allocatedBytes) * (p.size / 100);
+                }
+
+                if (!hasBoot) { displayError('disk-error', "A boot partition (mounted at /boot or /boot/efi) is strictly required."); return false; }
+                if (!hasRoot) { displayError('disk-error', "A root partition (mounted at /) is strictly required."); return false; }
+                
+                // Allow a tiny margin of error for byte-rounding, but catch gross overflows
+                if (allocatedBytes > usableBytes + (5 * 1024 * 1024)) { 
+                    displayError('disk-error', "Partition allocations mathematically exceed the total physical capacity of the drive."); return false; 
+                }
+            }
+            
+            if (activeIndex === 6) { // Auth Panel
+                if (!document.getElementById('username').value.trim()) { displayError('auth-error', "A primary username is required to safely administer the system."); return false; }
+                if (!document.getElementById('password').value.trim()) { displayError('auth-error', "A primary user password must be set."); return false; }
+            }
+
+            if (activeIndex === 8) { // Network Panel
+                if (!document.getElementById('hostname').value.trim()) { displayError('net-error', "System requires a valid hostname."); return false; }
+            }
+
+            return true;
         }
 
         function switchActiveWorkspaceModule(targetIndex) {
@@ -328,11 +386,11 @@
             if (activeIndex === MODULES.length - 1) {
                 nextBtn.innerText = "Start Installation";
                 nextBtn.className = "bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-sm shadow-md transition-colors";
-                nextBtn.onclick = transmitRuntimeJSONToEngine;
+                nextBtn.onclick = () => { if(validateCurrentStep()) transmitRuntimeJSONToEngine(); };
             } else {
                 nextBtn.innerText = "Continue";
                 nextBtn.className = "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors";
-                nextBtn.onclick = () => switchActiveWorkspaceModule(activeIndex + 1);
+                nextBtn.onclick = () => { if(validateCurrentStep()) switchActiveWorkspaceModule(activeIndex + 1); };
             }
         }
 
@@ -343,7 +401,7 @@
                 const row = document.createElement('div');
                 row.className = "flex gap-2 items-center";
                 row.innerHTML = `
-                    <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] border border-slate-300 p-2 rounded-md text-xs outline-none focus:border-blue-500 font-mono shadow-sm">
+                    <input type="text" value="${p.mountpoint}" onchange="partitions[${i}].mountpoint=this.value" class="w-[30%] border border-slate-300 p-2 rounded-md text-xs outline-none focus:border-blue-500 font-mono shadow-sm" placeholder="/mount">
                     <select onchange="partitions[${i}].fs=this.value" class="w-[30%] border border-slate-300 p-2 bg-white rounded-md text-xs outline-none focus:border-blue-500 shadow-sm">
                         <option value="fat32" ${p.fs=='fat32'?'selected':''}>fat32</option>
                         <option value="ext4" ${p.fs=='ext4'?'selected':''}>ext4</option>
@@ -352,7 +410,7 @@
                         <option value="linux-swap" ${p.fs=='linux-swap'?'selected':''}>swap</option>
                     </select>
                     <div class="w-[30%] flex border border-slate-300 rounded-md overflow-hidden bg-white shadow-sm">
-                        <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] p-2 text-xs outline-none border-r border-slate-200 font-mono">
+                        <input type="number" value="${p.size}" onchange="partitions[${i}].size=parseFloat(this.value)" class="w-[55%] p-2 text-xs outline-none border-r border-slate-200 font-mono" min="1">
                         <select onchange="partitions[${i}].unit=this.value" class="w-[45%] bg-slate-50 text-[11px] outline-none px-1">
                             <option value="MiB" ${p.unit=='MiB'?'selected':''}>MB</option>
                             <option value="GiB" ${p.unit=='GiB'?'selected':''}>GB</option>
@@ -365,7 +423,7 @@
             });
         }
 
-        function addPartitionRow() { partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'btrfs', size: 20, unit: 'GiB' }); renderPartitions(); }
+        function addPartitionRow() { partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'ext4', size: 20, unit: 'GiB' }); renderPartitions(); }
 
         function selectDiskTargetVolume(val, bytes, el) {
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
@@ -381,10 +439,13 @@
 
         function registerGlobalEventHooks() {
             document.getElementById('btn-next-step').addEventListener('click', () => {
-                if (activeIndex < MODULES.length - 1) switchActiveWorkspaceModule(activeIndex + 1);
+                if (validateCurrentStep() && activeIndex < MODULES.length - 1) switchActiveWorkspaceModule(activeIndex + 1);
             });
             document.getElementById('btn-back-step').addEventListener('click', () => switchActiveWorkspaceModule(activeIndex - 1));
-            document.getElementById('mobile-step-select').addEventListener('change', e => switchActiveWorkspaceModule(parseInt(e.target.value)));
+            document.getElementById('mobile-step-select').addEventListener('change', e => {
+                if (validateCurrentStep()) switchActiveWorkspaceModule(parseInt(e.target.value));
+                else document.getElementById('mobile-step-select').value = activeIndex; // Revert visually
+            });
             
             document.getElementById('btn-reboot').addEventListener('click', async () => {
                 document.getElementById('btn-reboot').innerText = "Rebooting Hardware...";
@@ -436,20 +497,38 @@
             document.getElementById('deploy-title').innerText = "Installing Arch Linux";
             document.getElementById('progress-msg').innerText = "Formatting partitions and compiling system structure...";
 
-            let currentStartBytes = 1048576; let btrfsConfigured = false;
+            // Archinstall Sector Calculation Engine
+            let currentStartBytes = 1048576; // Start exactly at 1MiB
+            let usableDiskBytes = selectedDiskBytes - 1048576; // Leave 1MiB buffer tail for GPT tables
+
+            let btrfsConfigured = false;
             const partsPayload = partitions.map(p => {
                 let pSizeB = 0;
-                if(p.unit === 'Percent') pSizeB = Math.floor((selectedDiskBytes - currentStartBytes) * (p.size / 100));
+                if(p.unit === 'Percent') pSizeB = Math.floor((usableDiskBytes - currentStartBytes) * (p.size / 100));
                 else if(p.unit === 'MiB') pSizeB = p.size * 1024 * 1024;
                 else if(p.unit === 'GiB') pSizeB = p.size * 1024 * 1024 * 1024;
+
+                // Force 512-byte sector alignment to guarantee engine validation pass
+                pSizeB = Math.floor(pSizeB / 512) * 512;
 
                 const isBoot = (p.mountpoint === '/boot' || p.mountpoint === '/boot/efi' || p.fs === 'fat32');
                 const isBtrfs = p.fs === 'btrfs';
                 if(isBtrfs) btrfsConfigured = true;
                 
                 const btrfsVols = (isBtrfs && p.mountpoint === '/') ? [ { "mountpoint": "/", "name": "@" }, { "mountpoint": "/home", "name": "@home" }, { "mountpoint": "/var/log", "name": "@log" }, { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" } ] : [];
-                const pObj = { "obj_id": p.id, "status": "create", "type": "primary", "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, "fs_type": p.fs, "mountpoint": (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint, "mount_options": isBtrfs ? ["compress=zstd"] : [], "flags": isBoot ? ["boot"] : [], "dev_path": null, "btrfs": btrfsVols };
-                currentStartBytes += pSizeB; return pObj;
+                
+                const pObj = { 
+                    "obj_id": p.id, "status": "create", "type": "primary", 
+                    "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, 
+                    "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, 
+                    "fs_type": p.fs, 
+                    "mountpoint": (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint, 
+                    "mount_options": isBtrfs ? ["compress=zstd"] : [], 
+                    "flags": isBoot ? ["boot"] : [], "dev_path": null, "btrfs": btrfsVols 
+                };
+                
+                currentStartBytes += pSizeB; 
+                return pObj;
             });
 
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
@@ -489,7 +568,7 @@
                 configPayload.profile_config = { "gfx_driver": "All open-source", "greeter": "sddm", "profile": { "custom_settings": cSettings, "details": [selectedDesktopVal], "main": mainType } };
             }
 
-            const credsPayload = { "root_enc_password": null, "users": [{ "username": document.getElementById('username').value || "arch", "enc_password": null, "password": document.getElementById('password').value || "password", "groups": ["wheel"], "sudo": true }] };
+            const credsPayload = { "root_enc_password": null, "users": [{ "username": document.getElementById('username').value, "enc_password": null, "password": document.getElementById('password').value, "groups": ["wheel"], "sudo": true }] };
             const rootPass = document.getElementById('root_password').value;
             if (rootPass) credsPayload["root-password"] = rootPass;
 
@@ -510,6 +589,7 @@
                     document.getElementById('progress-msg').className = "text-sm font-medium text-red-500 mb-8";
                     document.getElementById('progress-pct').className = "text-xl font-black text-red-600";
                     document.getElementById('progress-bar-fill').className = "bg-red-600 h-full rounded-full w-full";
+                    document.getElementById('nav-footer').style.display = 'flex'; // Give them the back button back
                     stream.close();
                 }
                 if(data.status === "completed") {

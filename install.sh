@@ -70,7 +70,6 @@ echo -e " \e[1;37mMode:\e[0m \e[1;33m${CONNECTION_MODE}\e[0m\n"
 echo -e "\e[1;34m[ * ]\e[0m \e[1;37mAwaiting WebUI configuration payload...\e[0m"
 echo -e "\e[1;30m      (Leave this terminal open. Live progress will render below)\e[0m\n"
 
-# TUI Progress Bar Render Loop
 while kill -0 $PYTHON_PID 2>/dev/null; do
     if [ -f "$STATE_FILE" ]; then
         IFS='|' read -r pct msg status < "$STATE_FILE"
@@ -81,9 +80,16 @@ while kill -0 $PYTHON_PID 2>/dev/null; do
             bar=""; for ((i=0; i<filled; i++)); do bar="${bar}#"; done
             space=""; for ((i=0; i<empty; i++)); do space="${space}-"; done
             
-            printf "\r\e[K\e[1;34m[\e[1;32m%s\e[1;30m%s\e[1;34m]\e[0m \e[1;33m%3d%%\e[0m \e[1;37m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+            # Format text explicitly with error handling colors
+            if [ "$status" = "error" ]; then
+                printf "\r\e[K\e[1;31m[\e[1;31m%s\e[1;30m%s\e[1;31m]\e[0m \e[1;31m%3d%%\e[0m \e[1;31m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+                echo -e "\n"
+                break
+            else
+                printf "\r\e[K\e[1;34m[\e[1;32m%s\e[1;30m%s\e[1;34m]\e[0m \e[1;33m%3d%%\e[0m \e[1;37m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+            fi
             
-            if [ "$status" = "completed" ] || [ "$status" = "error" ]; then
+            if [ "$status" = "completed" ]; then
                 echo -e "\n"
                 break
             fi
