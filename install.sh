@@ -6,16 +6,13 @@ STATE_FILE="/tmp/archinstall-state.txt"
 echo "--- NEW INSTALLATION SESSION: $(date) ---" > "$LOG_FILE"
 echo "0|Waiting for WebUI matrix payload...|idle" > "$STATE_FILE"
 
-PYTHON_PID=""
-SSH_PID=""
-
 print_step() { echo -e "\e[1;34m[ \e[1;37m$1\e[1;34m ]\e[0m \e[1;36m$2...\e[0m"; }
 print_success() { echo -e "\e[1;32m[ ✔ ]\e[0m \e[1;37m$1\e[0m\n"; }
 print_error() { echo -e "\n\e[1;31m[ ✘ ] ERROR:\e[0m \e[1;37m$1\e[0m\n"; exit 1; }
 
 cleanup() {
-    [ -n "$PYTHON_PID" ] && kill -9 "$PYTHON_PID" >> "$LOG_FILE" 2>&1
-    [ -n "$SSH_PID" ] && kill -9 "$SSH_PID" >> "$LOG_FILE" 2>&1
+    [ -n "$PYTHON_PID" ] && kill -9 "$PYTHON_PID" >/dev/null 2>&1
+    [ -n "$SSH_PID" ] && kill -9 "$SSH_PID" >/dev/null 2>&1
 }
 trap cleanup EXIT INT TERM
 
@@ -44,7 +41,7 @@ fi
 print_success "Engine running on port 5000"
 
 print_step "4/4" "Establishing remote access tunnels"
-LOCAL_IP=$(ip -o -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([0-9.]\+\).*/\1/p')
+LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
 [ -z "$LOCAL_IP" ] && LOCAL_IP=$(hostname -I | awk '{print $1}')
 
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 \

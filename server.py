@@ -97,13 +97,11 @@ def run_archinstall():
         ("installing base packages", 25, "Installing core system packages..."),
         ("pacstrap", 28, "Bootstrapping Arch Linux base environment..."),
         ("installing kernel", 60, "Deploying Linux kernel modules..."),
-        ("installing bootloader", 70, "Installing system bootloader..."),
-        ("configuring bootloader", 74, "Injecting system core bootloader configuration..."),
+        ("configuring bootloader", 72, "Injecting system core bootloader..."),
         ("creating user", 80, "Configuring system users..."),
         ("profile", 84, "Compiling environment configuration variables..."),
-        ("enabling service", 88, "Enabling targeted network running services..."),
-        ("setting timezone", 92, "Applying localization and timezone rules..."),
-        ("creating initramfs", 95, "Generating initial ramdisk environment..."),
+        ("enabling service", 93, "Enabling targeted network running services..."),
+        ("creating initramfs", 96, "Generating initial ramdisk environment..."),
         ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
     with open(LOG_FILE, 'a') as master_log:
@@ -111,7 +109,7 @@ def run_archinstall():
             master_log.write(f"[ARCHINSTALL] {line}")
             master_log.flush()
             lower_line = line.lower()
-            if "error:" in lower_line or "requires a uefi system" in lower_line:
+            if "archinstall.lib.exceptions" in lower_line or "requires a uefi system" in lower_line or "fatal error:" in lower_line:
                 update_state(99, f"Fatal Error: {line.strip()}", "error")
                 process.kill()
                 break
