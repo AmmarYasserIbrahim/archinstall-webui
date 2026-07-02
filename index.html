@@ -53,11 +53,8 @@
                             </select>
                         </div>
                         <div class="border-t border-slate-200 pt-4">
-                            <div class="flex justify-between items-center mb-3">
-                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Keyboard Layouts</label>
-                                <button type="button" onclick="addKbLayoutRow()" class="text-[10px] bg-slate-800 text-white px-3 py-1.5 rounded-md font-bold hover:bg-slate-700 uppercase tracking-wider transition-colors shadow-sm">+ Add Layout</button>
-                            </div>
-                            <div id="kb-layout-list" class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Keyboard Layouts</label>
+                            <div id="kb-layout-list" class="space-y-2 mb-3">
                                 <div class="flex gap-2 kb-row">
                                     <select class="kb-select w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                                         <option value="us">US - United States</option>
@@ -70,6 +67,7 @@
                                     <div class="w-[15%]"></div> <!-- Spacing placeholder to align with deletion buttons -->
                                 </div>
                             </div>
+                            <button type="button" onclick="addKbLayoutRow()" class="text-[10px] bg-slate-800 text-white px-3 py-1.5 rounded-md font-bold hover:bg-slate-700 uppercase tracking-wider transition-colors shadow-sm">+ Add Layout</button>
                         </div>
                     </div>
 
