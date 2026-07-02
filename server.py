@@ -39,15 +39,12 @@ def get_system_telemetry():
 def run_archinstall():
     update_state(2, "Clearing disk locks and orphaned mounts...", "running")
     
-    # 1. Kill any stray processes locking the mount point
-    os.system('fuser -k -9 -m /mnt >> /tmp/archinstall-webui.log 2>&1')
+    # 1. Turn off swap and force recursive unmount safely
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
-    
-    # 2. Force recursive unmount
     os.system('umount -R /mnt >> /tmp/archinstall-webui.log 2>&1')
     os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
     
-    # 3. Aggressive Target Disk Zapping
+    # 2. Aggressive Target Disk Zapping
     try:
         with open(CONFIG_PATH, 'r') as f:
             config = json.load(f)
@@ -55,15 +52,9 @@ def run_archinstall():
             for mod in devices:
                 dev = mod.get('device')
                 if dev:
-                    # Kill anything accessing the physical device blocks
-                    os.system(f'fuser -k -9 {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    
                     # Force unmount any specific partitions on this drive
                     os.system(f'umount -f {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'umount -l {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    
-                    # Flush block device buffers to release kernel holds
-                    os.system(f'blockdev --flushbufs {dev} >> /tmp/archinstall-webui.log 2>&1')
                     
                     # Destroy filesystem signatures so udev releases it
                     os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
