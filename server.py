@@ -52,9 +52,9 @@ def run_archinstall():
     os.system('pkill -9 pacman >> /tmp/archinstall-webui.log 2>&1')
     os.system('pkill -9 pacstrap >> /tmp/archinstall-webui.log 2>&1')
     
-    # AGGRESSIVE CLEANUP: Force-kill processes holding /mnt and lazy-unmount the entire tree
+    # SAFER CLEANUP: Targeted lazy unmounts without `fuser` to protect the Live ISO
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
-    os.system('fuser -km /mnt >> /tmp/archinstall-webui.log 2>&1')
+    os.system('umount -l -R /mnt/archinstall >> /tmp/archinstall-webui.log 2>&1')
     os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
     
     try:
@@ -64,11 +64,10 @@ def run_archinstall():
             for mod in devices:
                 dev = mod.get('device')
                 if dev:
-                    # Break active locks on the block device itself
-                    os.system(f'fuser -km {dev} >> /tmp/archinstall-webui.log 2>&1')
+                    # Strictly target the chosen installation drive
                     os.system(f'umount -l {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     
-                    # Wipe signatures and partition tables
+                    # Wipe signatures and partition tables safely
                     os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'wipefs -af {dev} >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'sgdisk --zap-all {dev} >> /tmp/archinstall-webui.log 2>&1')

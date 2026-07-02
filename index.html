@@ -56,7 +56,7 @@
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Keyboard Layouts</label>
                             <div id="kb-layout-list" class="space-y-2 mb-3">
                                 <div class="flex gap-2 kb-row">
-                                    <select class="kb-select w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                    <select class="kb-select w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                                         <option value="us">US - United States</option>
                                         <option value="uk">UK - United Kingdom</option>
                                         <option value="ar">AR - Arabic</option>
@@ -64,7 +64,6 @@
                                         <option value="fr">FR - French</option>
                                         <option value="es">ES - Spanish</option>
                                     </select>
-                                    <div class="w-[15%]"></div> <!-- Spacing placeholder to align with deletion buttons -->
                                 </div>
                             </div>
                             <button type="button" onclick="addKbLayoutRow()" class="text-[10px] bg-slate-800 text-white px-3 py-1.5 rounded-md font-bold hover:bg-slate-700 uppercase tracking-wider transition-colors shadow-sm">+ Add Layout</button>
@@ -327,9 +326,9 @@
         function addKbLayoutRow() {
             const list = document.getElementById('kb-layout-list');
             const row = document.createElement('div');
-            row.className = "flex gap-2 kb-row";
+            row.className = "flex gap-2 kb-row mt-2";
             row.innerHTML = `
-                <select class="kb-select w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                <select class="kb-select flex-1 border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                     <option value="ar">AR - Arabic</option>
                     <option value="us">US - United States</option>
                     <option value="uk">UK - United Kingdom</option>
@@ -337,7 +336,7 @@
                     <option value="fr">FR - French</option>
                     <option value="es">ES - Spanish</option>
                 </select>
-                <button type="button" onclick="this.parentElement.remove()" class="w-[15%] text-slate-400 font-bold text-sm hover:text-red-500 py-2 transition-colors">✕</button>
+                <button type="button" onclick="this.parentElement.remove()" class="w-10 flex justify-center items-center text-slate-400 font-bold text-lg hover:text-red-500 transition-colors">✕</button>
             `;
             list.appendChild(row);
         }
