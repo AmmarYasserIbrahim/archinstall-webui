@@ -13,6 +13,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
+        /* Styled specifically for the dark terminal box */
         .terminal-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .terminal-scrollbar::-webkit-scrollbar-track { background: #1e1e2e; border-radius: 4px; }
         .terminal-scrollbar::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
@@ -43,7 +44,7 @@
                 <h2 id="view-title" class="text-xl font-bold text-slate-800">Language & Locales</h2>
                 <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border border-slate-200" id="step-counter">Step 1</span>
             </div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 min-h-0">
+            <div id="main-scroll-container" class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 min-h-0">
                 <form id="installer-config-form" class="max-w-2xl mx-auto pb-4">
                     
                     <div id="panel-locales" class="config-panel space-y-6 block">
@@ -267,10 +268,13 @@
                             <button type="button" id="btn-reboot" class="hidden w-full bg-slate-800 hover:bg-black text-white font-bold py-3.5 rounded-lg text-sm transition-all shadow-md uppercase tracking-wider shrink-0 mb-4">Reboot System</button>
                             
                             <div id="logs-wrapper" class="hidden flex-col w-full mt-2 shrink-0">
-                                <button type="button" id="btn-open-terminal" class="text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center justify-center gap-2 py-2.5 shrink-0 mx-auto border border-slate-300 rounded-lg px-5 mt-2 bg-white shadow-sm hover:border-blue-300">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M4 15h16M4 9h16M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2z"></path></svg>
-                                    Open Terminal View
+                                <button type="button" id="btn-toggle-logs" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center justify-center gap-1 py-1 shrink-0 mx-auto">
+                                    <span id="log-toggle-text">Show Detailed Logs</span>
+                                    <svg id="log-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </button>
+                                <div id="log-container" class="hidden bg-[#1e1e2e] rounded-lg p-3 overflow-auto terminal-scrollbar border border-slate-700 shadow-inner w-full mt-2 h-[250px] text-left">
+                                    <pre id="log-output" class="font-mono text-[10px] leading-relaxed text-[#a6accd] whitespace-pre min-w-max m-0"></pre>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -279,23 +283,6 @@
             <div id="nav-footer" class="shrink-0 px-6 py-4 bg-white border-t border-slate-200 flex justify-between items-center z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 <button type="button" id="btn-back-step" class="text-slate-500 hover:text-slate-800 font-semibold text-sm py-2 px-4 rounded-lg transition-colors invisible">Back</button>
                 <button type="button" id="btn-next-step" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors">Continue</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Terminal Output Overlay Modal -->
-    <div id="terminal-modal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm p-4 lg:p-8 flex items-center justify-center transition-opacity">
-        <div class="w-full max-w-5xl h-full max-h-[85vh] bg-[#1e1e2e] rounded-xl shadow-2xl flex flex-col border border-slate-700 overflow-hidden relative">
-            <div class="shrink-0 bg-[#181825] px-4 py-3 flex justify-between items-center border-b border-slate-700/50">
-                <span class="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live Installation Engine
-                </span>
-                <button type="button" id="btn-close-terminal" class="text-slate-400 hover:text-white transition-colors bg-transparent border-0 cursor-pointer p-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div id="terminal-container" class="flex-1 overflow-auto p-4 terminal-scrollbar">
-                <pre id="log-output" class="font-mono text-[11px] lg:text-xs leading-relaxed text-[#a6accd] whitespace-pre m-0"></pre>
             </div>
         </div>
     </div>
@@ -345,6 +332,7 @@
 
         function addKbLayoutRow() {
             const list = document.getElementById('kb-layout-list');
+            if (list.children.length >= 6) return;
             const row = document.createElement('div');
             row.className = "flex gap-2 kb-row mt-2";
             row.innerHTML = `
@@ -477,9 +465,15 @@
                 document.getElementById('deploy-title').innerText = "Ready to Install";
                 document.getElementById('progress-msg').innerText = "Click 'Start Installation' below to format your drives and deploy Arch Linux.";
             }
+            
             document.getElementById(`panel-${MODULES[activeIndex].id}`).classList.replace('block', 'hidden');
             activeIndex = targetIndex;
             document.getElementById(`panel-${MODULES[activeIndex].id}`).classList.replace('hidden', 'block');
+            
+            // Force reset scroll position for the active view to prevent top-content clipping
+            const scrollContainer = document.getElementById('main-scroll-container');
+            if (scrollContainer) scrollContainer.scrollTop = 0;
+            
             MODULES.forEach((mod, idx) => {
                 const btn = document.getElementById(`nav-btn-${mod.id}`);
                 btn.className = `w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center ${idx === activeIndex ? 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200' : 'text-slate-600 hover:bg-slate-200 border border-transparent'}`;
@@ -553,7 +547,7 @@
             const logOut = document.getElementById('log-output');
             logOut.innerText = logs.join('\n');
             if (!isUserScrollingLogs) {
-                const container = document.getElementById('terminal-container');
+                const container = document.getElementById('log-container');
                 container.scrollTop = container.scrollHeight;
             }
         }
@@ -584,19 +578,27 @@
                 await fetch('/api/reboot', { method: 'POST' });
             });
             
-            // Terminal Modal Hook Binding
-            const modal = document.getElementById('terminal-modal');
-            const container = document.getElementById('terminal-container');
-            
-            document.getElementById('btn-open-terminal').addEventListener('click', () => {
-                modal.classList.remove('hidden');
-                container.scrollTop = container.scrollHeight;
+            document.getElementById('btn-toggle-logs').addEventListener('click', () => {
+                const container = document.getElementById('log-container');
+                const icon = document.getElementById('log-icon');
+                const txt = document.getElementById('log-toggle-text');
+                const parentFlex = document.getElementById('deploy-wrapper');
+                if (container.classList.contains('hidden')) {
+                    container.classList.remove('hidden');
+                    container.classList.add('block');
+                    icon.classList.add('rotate-180');
+                    txt.innerText = 'Hide Detailed Logs';
+                    parentFlex.classList.remove('justify-center');
+                    container.scrollTop = container.scrollHeight;
+                } else {
+                    container.classList.add('hidden');
+                    container.classList.remove('block');
+                    icon.classList.remove('rotate-180');
+                    txt.innerText = 'Show Detailed Logs';
+                    parentFlex.classList.add('justify-center');
+                }
             });
-            document.getElementById('btn-close-terminal').addEventListener('click', () => {
-                modal.classList.add('hidden');
-            });
-            
-            container.addEventListener('scroll', (e) => {
+            document.getElementById('log-container').addEventListener('scroll', (e) => {
                 const el = e.target;
                 isUserScrollingLogs = el.scrollHeight - el.scrollTop - el.clientHeight > 20;
             });
@@ -717,7 +719,9 @@
                 return pObj;
             });
             
-            const kbLayouts = Array.from(document.querySelectorAll('.kb-select')).map(s => s.value).join(',');
+            // Deduplicate layout selection inputs
+            const kbLayoutsArray = Array.from(document.querySelectorAll('.kb-select')).map(s => s.value);
+            const kbLayouts = [...new Set(kbLayoutsArray)].join(',');
             
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
             const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
