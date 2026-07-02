@@ -6,6 +6,9 @@ STATE_FILE="/tmp/archinstall-state.txt"
 echo "--- NEW INSTALLATION SESSION: $(date) ---" > "$LOG_FILE"
 echo "0|Waiting for WebUI matrix payload...|idle" > "$STATE_FILE"
 
+PYTHON_PID=""
+SSH_PID=""
+
 print_step() { echo -e "\e[1;34m[ \e[1;37m$1\e[1;34m ]\e[0m \e[1;36m$2...\e[0m"; }
 print_success() { echo -e "\e[1;32m[ ✔ ]\e[0m \e[1;37m$1\e[0m\n"; }
 print_error() { echo -e "\n\e[1;31m[ ✘ ] ERROR:\e[0m \e[1;37m$1\e[0m\n"; exit 1; }
@@ -41,7 +44,7 @@ fi
 print_success "Engine running on port 5000"
 
 print_step "4/4" "Establishing remote access tunnels"
-LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+LOCAL_IP=$(ip -o -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([0-9.]\+\).*/\1/p')
 [ -z "$LOCAL_IP" ] && LOCAL_IP=$(hostname -I | awk '{print $1}')
 
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 \
@@ -75,19 +78,28 @@ while kill -0 $PYTHON_PID 2>/dev/null; do
     if [ -f "$STATE_FILE" ]; then
         IFS='|' read -r pct msg status < "$STATE_FILE"
         if [ -n "$pct" ]; then
-            filled=$(( pct * 40 / 100 ))
-            empty=$(( 40 - filled ))
+            filled=$(( pct * 20 / 100 ))
+            empty=$(( 20 - filled ))
             
             bar=""; for ((i=0; i<filled; i++)); do bar="${bar}#"; done
             space=""; for ((i=0; i<empty; i++)); do space="${space}-"; done
             
+            TERM_WIDTH=$(tput cols 2>/dev/null || echo 80)
+            MAX_MSG=$(( TERM_WIDTH - 32 ))
+            [ "$MAX_MSG" -lt 10 ] && MAX_MSG=10
+            
+            short_msg="${msg}"
+            if [ ${#short_msg} -gt $MAX_MSG ]; then
+                short_msg="${short_msg:0:$MAX_MSG}..."
+            fi
+            
             if [ "$status" = "error" ]; then
-                printf "\r\e[K\e[1;31m[\e[1;31m%s\e[1;30m%s\e[1;31m]\e[0m \e[1;31m%3d%%\e[0m \e[1;31m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+                printf "\r\e[K\e[1;31m[\e[1;31m%s\e[1;30m%s\e[1;31m]\e[0m \e[1;31m%3d%%\e[0m \e[1;31m%s\e[0m" "$bar" "$space" "$pct" "$short_msg"
                 echo -e "\n"
                 break
             else
                 if [ "$status" != "completed" ] || [ -z "$done_flag" ]; then
-                    printf "\r\e[K\e[1;34m[\e[1;32m%s\e[1;30m%s\e[1;34m]\e[0m \e[1;33m%3d%%\e[0m \e[1;37m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+                    printf "\r\e[K\e[1;34m[\e[1;32m%s\e[1;30m%s\e[1;34m]\e[0m \e[1;33m%3d%%\e[0m \e[1;37m%s\e[0m" "$bar" "$space" "$pct" "$short_msg"
                 fi
             fi
             

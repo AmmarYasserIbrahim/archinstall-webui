@@ -31,15 +31,7 @@ def update_state(pct, msg, status):
 def get_tail_logs(lines=150):
     try:
         with open(LOG_FILE, 'r') as f:
-            raw_lines = f.readlines()[-lines:]
-            clean_lines = []
-            for line in raw_lines:
-                line = ansi_escape.sub('', line.rstrip())
-                if '\r' in line:
-                    line = line.split('\r')[-1]
-                if line.strip():
-                    clean_lines.append(line)
-            return clean_lines
+            return [line.strip() for line in f.readlines()[-lines:] if line.strip()]
     except:
         return []
 
@@ -86,44 +78,53 @@ def run_archinstall():
     os.system('echo "FallbackNTP=time.google.com time.cloudflare.com" >> /etc/systemd/timesyncd.conf')
     os.system('systemctl restart systemd-timesyncd >> /tmp/archinstall-webui.log 2>&1')
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
+    
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    
     indicators = [
-        ("creating a new partition label", 10, "Writing partition tables..."),
-        ("adding partition", 12, "Allocating drive partitions..."),
+        ("writing partition", 10, "Writing partition tables..."),
         ("formatting", 15, "Formatting storage block partitions..."),
         ("mounting", 18, "Mounting target filesystems..."),
+        ("time sync", 22, "Synchronizing network precision NTP clocks..."),
         ("waiting for time sync", 22, "Synchronizing network precision NTP clocks..."),
-        ("installing base packages", 25, "Installing core system packages..."),
-        ("pacstrap", 28, "Bootstrapping Arch Linux base environment..."),
+        ("pacstrap", 25, "Bootstrapping Arch Linux base environment..."),
+        ("installing packages to", 25, "Bootstrapping Arch Linux base environment..."),
+        ("installing base", 25, "Bootstrapping Arch Linux base environment..."),
         ("installing kernel", 60, "Deploying Linux kernel modules..."),
-        ("configuring bootloader", 72, "Injecting system core bootloader..."),
+        ("bootloader", 70, "Installing system bootloader..."),
+        ("configuring bootloader", 74, "Injecting system core bootloader configuration..."),
         ("creating user", 80, "Configuring system users..."),
+        ("useradd", 80, "Configuring system users..."),
         ("profile", 84, "Compiling environment configuration variables..."),
-        ("enabling service", 93, "Enabling targeted network running services..."),
-        ("creating initramfs", 96, "Generating initial ramdisk environment..."),
+        ("enabling service", 88, "Enabling targeted network running services..."),
+        ("setting timezone", 92, "Applying localization and timezone rules..."),
+        ("creating initramfs", 95, "Generating initial ramdisk environment..."),
+        ("mkinitcpio", 95, "Generating initial ramdisk environment..."),
         ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
+    
     with open(LOG_FILE, 'a') as master_log:
-        for line in process.stdout:
-            master_log.write(f"[ARCHINSTALL] {line}")
-            master_log.flush()
-            lower_line = line.lower()
+        for raw_line in process.stdout:
+            line_clean = ansi_escape.sub('', raw_line.rstrip())
+            lower_line = line_clean.lower()
+            
             if "archinstall.lib.exceptions" in lower_line or "requires a uefi system" in lower_line or "fatal error:" in lower_line:
-                update_state(99, f"Fatal Error: {line.strip()}", "error")
+                update_state(99, f"Fatal Error: {line_clean}", "error")
                 process.kill()
                 break
+                
             for key, pct, msg in indicators:
                 if key in lower_line and install_state["percentage"] < pct:
                     update_state(pct, msg, "running" if pct < 100 else "completed")
             
-            if 28 <= install_state["percentage"] < 60:
+            if 25 <= install_state["percentage"] < 60:
                 match = pacman_progress_re.search(lower_line)
                 if match:
                     current = int(match.group(1))
                     total = int(match.group(2))
-                    if total > 0 and current <= total:
-                        mapped_pct = int(28 + (current / total) * 31)
+                    if total > 50 and current <= total:
+                        mapped_pct = int(25 + (current / total) * 34)
                         if mapped_pct > install_state["percentage"]:
                             update_state(mapped_pct, "Fetching and unpacking system components...", "running")
                 elif "downloading" in lower_line and install_state["percentage"] < 35:
@@ -131,6 +132,16 @@ def run_archinstall():
             
             if 95 <= install_state["percentage"] < 99 and "==> starting build" in lower_line:
                 update_state(install_state["percentage"] + 1, "Compiling Linux initramfs kernel images...", "running")
+                
+            is_progress = False
+            if re.search(r'\[#+ *-*\]', line_clean) or re.search(r'\[█+ *\]', line_clean) or re.search(r'\[=+ *> *\]', line_clean):
+                is_progress = True
+            if re.match(r'^[\s\d]+%\s*$', line_clean):
+                is_progress = True
+                
+            if not is_progress and line_clean.strip():
+                master_log.write(f"[ARCHINSTALL] {line_clean}\n")
+                master_log.flush()
                 
     process.wait()
     if process.returncode != 0 and install_state["status"] not in ["completed", "error"]:
