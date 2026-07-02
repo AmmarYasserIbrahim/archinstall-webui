@@ -40,9 +40,9 @@ def run_archinstall():
     update_state(2, "Clearing disk locks and orphaned mounts...", "running")
     os.system('pkill -9 pacman >> /tmp/archinstall-webui.log 2>&1')
     os.system('pkill -9 pacstrap >> /tmp/archinstall-webui.log 2>&1')
-    os.system('fuser -k -m /mnt >> /tmp/archinstall-webui.log 2>&1')
+    os.system('fuser -k -m /mnt/archinstall >> /tmp/archinstall-webui.log 2>&1')
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
-    os.system('umount -R /mnt >> /tmp/archinstall-webui.log 2>&1')
+    os.system('umount -R /mnt/archinstall >> /tmp/archinstall-webui.log 2>&1')
     try:
         with open(CONFIG_PATH, 'r') as f:
             config = json.load(f)
@@ -52,16 +52,13 @@ def run_archinstall():
                 if dev:
                     os.system(f'fuser -k -m {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'umount -f {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    os.system('vgchange -an >> /tmp/archinstall-webui.log 2>&1')
-                    os.system('dmsetup remove_all -f >> /tmp/archinstall-webui.log 2>&1')
-                    os.system('losetup -D >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'wipefs -af {dev} >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'sgdisk --zap-all {dev} >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'partprobe {dev} >> /tmp/archinstall-webui.log 2>&1')
     except Exception as e:
         pass
-    os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
+    os.system('umount -l -R /mnt/archinstall >> /tmp/archinstall-webui.log 2>&1')
     os.system('udevadm settle >> /tmp/archinstall-webui.log 2>&1')
     time.sleep(2)
     update_state(5, "Synchronizing pacman mirror repositories...", "running")
