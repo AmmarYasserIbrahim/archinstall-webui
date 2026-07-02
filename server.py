@@ -52,7 +52,6 @@ def run_archinstall():
     os.system('pkill -9 pacman >> /tmp/archinstall-webui.log 2>&1')
     os.system('pkill -9 pacstrap >> /tmp/archinstall-webui.log 2>&1')
     
-    # SAFER CLEANUP: Targeted lazy unmounts without `fuser` to protect the Live ISO
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
     os.system('umount -l -R /mnt/archinstall >> /tmp/archinstall-webui.log 2>&1')
     os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
@@ -64,15 +63,10 @@ def run_archinstall():
             for mod in devices:
                 dev = mod.get('device')
                 if dev:
-                    # Strictly target the chosen installation drive
                     os.system(f'umount -l {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    
-                    # Wipe signatures and partition tables safely
                     os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'wipefs -af {dev} >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'sgdisk --zap-all {dev} >> /tmp/archinstall-webui.log 2>&1')
-                    
-                    # Force kernel to reload the blank partition table
                     os.system(f'partprobe {dev} >> /tmp/archinstall-webui.log 2>&1')
     except Exception as e:
         pass
@@ -89,20 +83,24 @@ def run_archinstall():
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     
+    # Weight-based thresholds: (trigger_phrase, floor_percentage, ceiling_percentage, message)
     indicators = [
-        ("writing partition", 10, "Writing partition tables..."),
-        ("formatting", 15, "Formatting storage block partitions..."),
-        ("mounting", 18, "Mounting target filesystems..."),
-        ("waiting for time sync", 22, "Synchronizing network precision NTP clocks..."),
-        ("installing packages to /mnt", 25, "Bootstrapping Arch Linux base environment..."),
-        ("installing bootloader", 70, "Installing system bootloader..."),
-        ("configuring bootloader", 74, "Injecting system core bootloader configuration..."),
-        ("creating user", 80, "Configuring system users..."),
-        ("enabling service", 88, "Enabling targeted network running services..."),
-        ("setting timezone", 92, "Applying localization and timezone rules..."),
-        ("creating initramfs", 95, "Generating initial ramdisk environment..."),
-        ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
+        ("writing partition", 10, 14, "Writing partition tables..."),
+        ("formatting", 15, 19, "Formatting storage block partitions..."),
+        ("mounting", 20, 24, "Mounting target filesystems..."),
+        ("waiting for time sync", 25, 29, "Synchronizing network precision NTP clocks..."),
+        ("installing packages to /mnt", 30, 69, "Bootstrapping Arch Linux base environment..."),
+        ("installing bootloader", 70, 74, "Installing system bootloader..."),
+        ("configuring bootloader", 75, 79, "Injecting system core bootloader configuration..."),
+        ("creating user", 80, 84, "Configuring system users..."),
+        ("enabling service", 85, 89, "Enabling targeted network running services..."),
+        ("setting timezone", 90, 94, "Applying localization and timezone rules..."),
+        ("creating initramfs", 95, 99, "Generating initial ramdisk environment..."),
+        ("installation completed", 100, 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
+    
+    current_pct = 5.0
+    current_ceiling = 9.0
     
     with open(LOG_FILE, 'a') as master_log:
         for raw_line in process.stdout:
@@ -114,34 +112,31 @@ def run_archinstall():
                 process.kill()
                 break
                 
-            for key, pct, msg in indicators:
-                if key in lower_line and install_state["percentage"] < pct:
-                    update_state(pct, msg, "running" if pct < 100 else "completed")
+            hit_checkpoint = False
+            for key, b_pct, m_pct, msg in indicators:
+                if key in lower_line and current_pct < b_pct:
+                    current_pct = float(b_pct)
+                    current_ceiling = float(m_pct)
+                    update_state(int(current_pct), msg, "running" if b_pct < 100 else "completed")
+                    hit_checkpoint = True
+                    break
             
-            if 25 <= install_state["percentage"] < 60:
-                match = re.search(r'Total\s*\(\s*(\d+)/\s*(\d+)\)', line_clean)
-                if match:
-                    current = int(match.group(1))
-                    total = int(match.group(2))
-                    if total > 50 and current <= total:
-                        mapped_pct = int(25 + (current / total) * 34)
-                        if mapped_pct > install_state["percentage"]:
-                            update_state(mapped_pct, "Fetching and unpacking system components...", "running")
-                elif "downloading" in lower_line and install_state["percentage"] < 35:
-                    update_state(install_state["percentage"] + 1, "Downloading repository databases...", "running")
-            
-            if 95 <= install_state["percentage"] < 99 and "==> starting build" in lower_line:
-                update_state(install_state["percentage"] + 1, "Compiling Linux initramfs kernel images...", "running")
+            # Simple string ops to filter out Pacman's messy output lines 
+            is_spam = False
+            if " [" in line_clean and "]" in line_clean and ("%" in line_clean or "#" in line_clean or "=" in line_clean or "-" in line_clean):
+                is_spam = True
+            if "downloading..." in lower_line or "Total (" in line_clean or line_clean.strip().endswith("%"):
+                is_spam = True
                 
-            is_progress = False
-            if re.search(r'\[#+ *-*\]', line_clean) or re.search(r'\[-+\]', line_clean) or re.search(r'\[=+ *> *\]', line_clean):
-                is_progress = True
-            if "Total (" in line_clean or re.search(r'\d+%\s*$', line_clean) or re.match(r'^[\s\d]+%\s*$', line_clean):
-                is_progress = True
-            if "downloading..." in lower_line:
-                is_progress = True
+            if not is_spam and line_clean.strip():
+                # Fractional flow logic: Every clean log line ticks the progress up slightly
+                if not hit_checkpoint and current_pct < current_ceiling:
+                    current_pct += 0.1
+                    if current_pct > current_ceiling:
+                        current_pct = current_ceiling
+                    if int(current_pct) > install_state["percentage"]:
+                        update_state(int(current_pct), install_state["message"], "running")
                 
-            if not is_progress and line_clean.strip():
                 master_log.write(f"[ARCHINSTALL] {line_clean}\n")
                 master_log.flush()
                 
