@@ -16,9 +16,12 @@ STATE_FILE = '/tmp/archinstall-state.txt'
 
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+pacman_progress_re = re.compile(r'\( *(\d+)/ *(\d+)\)')
 
 def update_state(pct, msg, status):
     global install_state
+    if status not in ["idle", "error"] and pct < install_state["percentage"]:
+        pct = install_state["percentage"]
     install_state = {"percentage": pct, "message": msg, "status": status}
     try:
         with open(STATE_FILE, 'w') as f:
@@ -94,11 +97,13 @@ def run_archinstall():
         ("installing base packages", 25, "Installing core system packages..."),
         ("pacstrap", 28, "Bootstrapping Arch Linux base environment..."),
         ("installing kernel", 60, "Deploying Linux kernel modules..."),
-        ("configuring bootloader", 72, "Injecting system core bootloader..."),
+        ("installing bootloader", 70, "Installing system bootloader..."),
+        ("configuring bootloader", 74, "Injecting system core bootloader configuration..."),
         ("creating user", 80, "Configuring system users..."),
         ("profile", 84, "Compiling environment configuration variables..."),
-        ("enabling service", 93, "Enabling targeted network running services..."),
-        ("creating initramfs", 96, "Generating initial ramdisk environment..."),
+        ("enabling service", 88, "Enabling targeted network running services..."),
+        ("setting timezone", 92, "Applying localization and timezone rules..."),
+        ("creating initramfs", 95, "Generating initial ramdisk environment..."),
         ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
     with open(LOG_FILE, 'a') as master_log:
@@ -113,10 +118,22 @@ def run_archinstall():
             for key, pct, msg in indicators:
                 if key in lower_line and install_state["percentage"] < pct:
                     update_state(pct, msg, "running" if pct < 100 else "completed")
-            if ("installing" in lower_line or "downloading" in lower_line) and 28 <= install_state["percentage"] < 60:
-                new_pct = install_state["percentage"] + 1
-                if new_pct <= 59:
-                    update_state(new_pct, "Fetching and unpacking system components...", "running")
+            
+            if 28 <= install_state["percentage"] < 60:
+                match = pacman_progress_re.search(lower_line)
+                if match:
+                    current = int(match.group(1))
+                    total = int(match.group(2))
+                    if total > 0 and current <= total:
+                        mapped_pct = int(28 + (current / total) * 31)
+                        if mapped_pct > install_state["percentage"]:
+                            update_state(mapped_pct, "Fetching and unpacking system components...", "running")
+                elif "downloading" in lower_line and install_state["percentage"] < 35:
+                    update_state(install_state["percentage"] + 1, "Downloading repository databases...", "running")
+            
+            if 95 <= install_state["percentage"] < 99 and "==> starting build" in lower_line:
+                update_state(install_state["percentage"] + 1, "Compiling Linux initramfs kernel images...", "running")
+                
     process.wait()
     if process.returncode != 0 and install_state["status"] not in ["completed", "error"]:
         update_state(99, f"Archinstall crashed. Exit Code {process.returncode}. See Log.", "error")

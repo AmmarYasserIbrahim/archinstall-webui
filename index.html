@@ -260,6 +260,7 @@
         let hostBootMode = "UEFI";
         let partitions = [];
         let isUserScrollingLogs = false;
+        let currentHighestPct = 0;
         const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Cutefish","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","KDE Plasma","Labwc","Lxqt","Mate","Niri","Qtile","River","Sway","Xfce4","Xmonad","none"];
         function genUUID() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }
         window.onload = () => {
@@ -513,6 +514,14 @@
                 if(data.install_state && data.install_state.status !== "idle") {
                     switchActiveWorkspaceModule(MODULES.length - 1);
                     document.getElementById('nav-footer').style.display = 'none';
+                    
+                    const recvPct = parseInt(data.install_state.percentage);
+                    if (data.install_state.status !== "idle" && data.install_state.status !== "error" && recvPct < currentHighestPct) {
+                        data.install_state.percentage = currentHighestPct;
+                    } else {
+                        currentHighestPct = recvPct;
+                    }
+                    
                     document.getElementById('progress-pct').innerText = `${data.install_state.percentage}%`;
                     document.getElementById('progress-bar-fill').style.width = `${data.install_state.percentage}%`;
                     document.getElementById('progress-msg').innerText = data.install_state.message;
@@ -626,6 +635,14 @@
             const stream = new EventSource('/api/progress');
             stream.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                
+                const recvPct = parseInt(data.percentage);
+                if (data.status !== "idle" && data.status !== "error" && recvPct < currentHighestPct) {
+                    data.percentage = currentHighestPct;
+                } else {
+                    currentHighestPct = recvPct;
+                }
+
                 document.getElementById('progress-msg').innerText = data.message;
                 document.getElementById('progress-pct').innerText = `${data.percentage}%`;
                 document.getElementById('progress-bar-fill').style.width = `${data.percentage}%`;
