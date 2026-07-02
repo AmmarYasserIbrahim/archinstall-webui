@@ -16,7 +16,6 @@ STATE_FILE = '/tmp/archinstall-state.txt'
 
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-pacman_progress_re = re.compile(r'\( *(\d+)/ *(\d+)\)')
 
 def update_state(pct, msg, status):
     global install_state
@@ -82,25 +81,19 @@ def run_archinstall():
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     
+    # FIXED: Replaced loose keywords with highly strict engine event states
     indicators = [
         ("writing partition", 10, "Writing partition tables..."),
         ("formatting", 15, "Formatting storage block partitions..."),
         ("mounting", 18, "Mounting target filesystems..."),
-        ("time sync", 22, "Synchronizing network precision NTP clocks..."),
         ("waiting for time sync", 22, "Synchronizing network precision NTP clocks..."),
-        ("pacstrap", 25, "Bootstrapping Arch Linux base environment..."),
-        ("installing packages to", 25, "Bootstrapping Arch Linux base environment..."),
-        ("installing base", 25, "Bootstrapping Arch Linux base environment..."),
-        ("installing kernel", 60, "Deploying Linux kernel modules..."),
-        ("bootloader", 70, "Installing system bootloader..."),
+        ("installing packages to /mnt", 25, "Bootstrapping Arch Linux base environment..."),
+        ("installing bootloader", 70, "Installing system bootloader..."),
         ("configuring bootloader", 74, "Injecting system core bootloader configuration..."),
         ("creating user", 80, "Configuring system users..."),
-        ("useradd", 80, "Configuring system users..."),
-        ("profile", 84, "Compiling environment configuration variables..."),
         ("enabling service", 88, "Enabling targeted network running services..."),
         ("setting timezone", 92, "Applying localization and timezone rules..."),
         ("creating initramfs", 95, "Generating initial ramdisk environment..."),
-        ("mkinitcpio", 95, "Generating initial ramdisk environment..."),
         ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
     
@@ -119,7 +112,7 @@ def run_archinstall():
                     update_state(pct, msg, "running" if pct < 100 else "completed")
             
             if 25 <= install_state["percentage"] < 60:
-                match = pacman_progress_re.search(lower_line)
+                match = re.search(r'Total\s*\(\s*(\d+)/\s*(\d+)\)', line_clean)
                 if match:
                     current = int(match.group(1))
                     total = int(match.group(2))
@@ -133,10 +126,13 @@ def run_archinstall():
             if 95 <= install_state["percentage"] < 99 and "==> starting build" in lower_line:
                 update_state(install_state["percentage"] + 1, "Compiling Linux initramfs kernel images...", "running")
                 
+            # FIXED: Strict pacman loading bar filters so it does not destroy the WebUI log view
             is_progress = False
-            if re.search(r'\[#+ *-*\]', line_clean) or re.search(r'\[█+ *\]', line_clean) or re.search(r'\[=+ *> *\]', line_clean):
+            if re.search(r'\[#+ *-*\]', line_clean) or re.search(r'\[-+\]', line_clean) or re.search(r'\[=+ *> *\]', line_clean):
                 is_progress = True
-            if re.match(r'^[\s\d]+%\s*$', line_clean):
+            if "Total (" in line_clean or re.search(r'\d+%\s*$', line_clean) or re.match(r'^[\s\d]+%\s*$', line_clean):
+                is_progress = True
+            if "downloading..." in lower_line:
                 is_progress = True
                 
             if not is_progress and line_clean.strip():

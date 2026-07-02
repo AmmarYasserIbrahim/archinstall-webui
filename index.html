@@ -39,16 +39,11 @@
             </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 min-h-0">
                 <form id="installer-config-form" class="max-w-2xl mx-auto pb-4">
-                    <div id="panel-locales" class="config-panel space-y-5 block">
+                    
+                    <div id="panel-locales" class="config-panel space-y-6 block">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Archinstall Language</label>
-                            <select id="arch_lang" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <option value="English">English</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">System Locales</label>
-                            <select id="sys_locale" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm mb-3">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">System Locale (Language)</label>
+                            <select id="sys_locale" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                                 <option value="en_US.UTF-8">English (US)</option>
                                 <option value="en_GB.UTF-8">English (UK)</option>
                                 <option value="ar_EG.UTF-8">Arabic (Egypt)</option>
@@ -56,16 +51,28 @@
                                 <option value="fr_FR.UTF-8">French</option>
                                 <option value="es_ES.UTF-8">Spanish</option>
                             </select>
-                            <select id="kb_layout" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <option value="us">US - United States</option>
-                                <option value="uk">UK - United Kingdom</option>
-                                <option value="ar">AR - Arabic</option>
-                                <option value="de">DE - German</option>
-                                <option value="fr">FR - French</option>
-                                <option value="es">ES - Spanish</option>
-                            </select>
+                        </div>
+                        <div class="border-t border-slate-200 pt-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Keyboard Layouts</label>
+                                <button type="button" onclick="addKbLayoutRow()" class="text-[10px] bg-slate-800 text-white px-3 py-1.5 rounded-md font-bold hover:bg-slate-700 uppercase tracking-wider transition-colors shadow-sm">+ Add Layout</button>
+                            </div>
+                            <div id="kb-layout-list" class="space-y-2">
+                                <div class="flex gap-2 kb-row">
+                                    <select class="kb-select w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                        <option value="us">US - United States</option>
+                                        <option value="uk">UK - United Kingdom</option>
+                                        <option value="ar">AR - Arabic</option>
+                                        <option value="de">DE - German</option>
+                                        <option value="fr">FR - French</option>
+                                        <option value="es">ES - Spanish</option>
+                                    </select>
+                                    <div class="w-[15%]"></div> <!-- Spacing placeholder to align with deletion buttons -->
+                                </div>
+                            </div>
                         </div>
                     </div>
+
                     <div id="panel-mirrors" class="config-panel space-y-5 hidden">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             <div>
@@ -316,6 +323,25 @@
             ];
             renderPartitions();
             hideErrors();
+        }
+
+        // Dynamically add a new layout field for Arabic/English dual typing
+        function addKbLayoutRow() {
+            const list = document.getElementById('kb-layout-list');
+            const row = document.createElement('div');
+            row.className = "flex gap-2 kb-row";
+            row.innerHTML = `
+                <select class="kb-select w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                    <option value="ar">AR - Arabic</option>
+                    <option value="us">US - United States</option>
+                    <option value="uk">UK - United Kingdom</option>
+                    <option value="de">DE - German</option>
+                    <option value="fr">FR - French</option>
+                    <option value="es">ES - Spanish</option>
+                </select>
+                <button type="button" onclick="this.parentElement.remove()" class="w-[15%] text-slate-400 font-bold text-sm hover:text-red-500 py-2 transition-colors">✕</button>
+            `;
+            list.appendChild(row);
         }
 
         function initNavigationMenus() {
@@ -681,6 +707,9 @@
                 return pObj;
             });
             
+            // Dynamic compilation for stacked keyboard layouts
+            const kbLayouts = Array.from(document.querySelectorAll('.kb-select')).map(s => s.value).join(',');
+            
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
             const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
             const extraPkgs = document.getElementById('extra_packages').value.split(',').map(s => s.trim()).filter(s => s);
@@ -689,13 +718,13 @@
             
             const configPayload = {
                 "version": "4.3", 
-                "archinstall-language": document.getElementById('arch_lang').value,
+                "archinstall-language": "English",
                 "app_config": { "audio_config": { "audio": document.getElementById('audio').value } },
                 "bootloader_config": { "bootloader": document.getElementById('bootloader').value, "removable": false, "uki": false },
                 "disk_config": { "config_type": "default_layout", "device_modifications": [{ "device": selectedDiskVal || "/dev/sda", "wipe": true, "partitions": partsPayload }] },
                 "hostname": document.getElementById('hostname').value,
                 "kernels": selKernels.length ? selKernels : ["linux"],
-                "locale_config": { "kb_layout": document.getElementById('kb_layout').value, "sys_enc": "UTF-8", "sys_lang": document.getElementById('sys_locale').value },
+                "locale_config": { "kb_layout": kbLayouts, "sys_enc": "UTF-8", "sys_lang": document.getElementById('sys_locale').value },
                 "mirror_config": { "mirror_regions": {}, "optional_repositories": optRepos },
                 "network_config": { "type": document.getElementById('net_type').value },
                 "ntp": document.getElementById('ntp_sync').checked, 
