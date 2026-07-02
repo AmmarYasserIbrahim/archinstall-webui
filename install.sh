@@ -6,13 +6,16 @@ STATE_FILE="/tmp/archinstall-state.txt"
 echo "--- NEW INSTALLATION SESSION: $(date) ---" > "$LOG_FILE"
 echo "0|Waiting for WebUI matrix payload...|idle" > "$STATE_FILE"
 
+PYTHON_PID=""
+SSH_PID=""
+
 print_step() { echo -e "\e[1;34m[ \e[1;37m$1\e[1;34m ]\e[0m \e[1;36m$2...\e[0m"; }
 print_success() { echo -e "\e[1;32m[ ✔ ]\e[0m \e[1;37m$1\e[0m\n"; }
 print_error() { echo -e "\n\e[1;31m[ ✘ ] ERROR:\e[0m \e[1;37m$1\e[0m\n"; exit 1; }
 
 cleanup() {
-    pkill -9 -f "server.py" >> "$LOG_FILE" 2>&1
-    pkill -9 -f "localhost.run" >> "$LOG_FILE" 2>&1
+    [ -n "$PYTHON_PID" ] && kill -9 "$PYTHON_PID" >> "$LOG_FILE" 2>&1
+    [ -n "$SSH_PID" ] && kill -9 "$SSH_PID" >> "$LOG_FILE" 2>&1
 }
 trap cleanup EXIT INT TERM
 
@@ -41,7 +44,7 @@ fi
 print_success "Engine running on port 5000"
 
 print_step "4/4" "Establishing remote access tunnels"
-LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+LOCAL_IP=$(ip -o -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([0-9.]\+\).*/\1/p')
 [ -z "$LOCAL_IP" ] && LOCAL_IP=$(hostname -I | awk '{print $1}')
 
 ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 \
@@ -70,6 +73,7 @@ echo -e " \e[1;37mMode:\e[0m \e[1;33m${CONNECTION_MODE}\e[0m\n"
 echo -e "\e[1;34m[ * ]\e[0m \e[1;37mAwaiting WebUI configuration payload...\e[0m"
 echo -e "\e[1;30m      (Leave this terminal open. Live progress will render below)\e[0m\n"
 
+done_flag=""
 while kill -0 $PYTHON_PID 2>/dev/null; do
     if [ -f "$STATE_FILE" ]; then
         IFS='|' read -r pct msg status < "$STATE_FILE"
@@ -85,12 +89,14 @@ while kill -0 $PYTHON_PID 2>/dev/null; do
                 echo -e "\n"
                 break
             else
-                printf "\r\e[K\e[1;34m[\e[1;32m%s\e[1;30m%s\e[1;34m]\e[0m \e[1;33m%3d%%\e[0m \e[1;37m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+                if [ "$status" != "completed" ] || [ -z "$done_flag" ]; then
+                    printf "\r\e[K\e[1;34m[\e[1;32m%s\e[1;30m%s\e[1;34m]\e[0m \e[1;33m%3d%%\e[0m \e[1;37m%s\e[0m" "$bar" "$space" "$pct" "$msg"
+                fi
             fi
             
-            if [ "$status" = "completed" ]; then
-                echo -e "\n"
-                break
+            if [ "$status" = "completed" ] && [ -z "$done_flag" ]; then
+                echo -e "\n\n\e[1;32m[ ✔ ] Installation Successful! Awaiting reboot command from WebUI...\e[0m"
+                done_flag="1"
             fi
         fi
     fi

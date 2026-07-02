@@ -5,6 +5,7 @@ import subprocess
 import os
 import threading
 import time
+import re
 from urllib.parse import urlparse
 
 PORT = 5000
@@ -14,6 +15,7 @@ LOG_FILE = '/tmp/archinstall-webui.log'
 STATE_FILE = '/tmp/archinstall-state.txt'
 
 install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
+ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 def update_state(pct, msg, status):
     global install_state
@@ -22,6 +24,21 @@ def update_state(pct, msg, status):
         with open(STATE_FILE, 'w') as f:
             f.write(f"{pct}|{msg}|{status}\n")
     except: pass
+
+def get_tail_logs(lines=150):
+    try:
+        with open(LOG_FILE, 'r') as f:
+            raw_lines = f.readlines()[-lines:]
+            clean_lines = []
+            for line in raw_lines:
+                line = ansi_escape.sub('', line.rstrip())
+                if '\r' in line:
+                    line = line.split('\r')[-1]
+                if line.strip():
+                    clean_lines.append(line)
+            return clean_lines
+    except:
+        return []
 
 def get_system_telemetry():
     telemetry = {"cpu": "x86_64 Architecture", "boot_mode": "BIOS", "hardware": {}}
@@ -62,16 +79,26 @@ def run_archinstall():
     os.system('udevadm settle >> /tmp/archinstall-webui.log 2>&1')
     time.sleep(2)
     update_state(5, "Synchronizing pacman mirror repositories...", "running")
+    os.system('sed -i "s/#ParallelDownloads = 5/ParallelDownloads = 10/" /etc/pacman.conf')
+    os.system('echo "FallbackNTP=time.google.com time.cloudflare.com" >> /etc/systemd/timesyncd.conf')
+    os.system('systemctl restart systemd-timesyncd >> /tmp/archinstall-webui.log 2>&1')
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     indicators = [
+        ("creating a new partition label", 10, "Writing partition tables..."),
+        ("adding partition", 12, "Allocating drive partitions..."),
         ("formatting", 15, "Formatting storage block partitions..."),
+        ("mounting", 18, "Mounting target filesystems..."),
         ("waiting for time sync", 22, "Synchronizing network precision NTP clocks..."),
-        ("pacstrap", 48, "Extracting base core packages to dev structures..."),
-        ("bootloader", 72, "Injecting system core bootloader modifications..."),
+        ("installing base packages", 25, "Installing core system packages..."),
+        ("pacstrap", 28, "Bootstrapping Arch Linux base environment..."),
+        ("installing kernel", 60, "Deploying Linux kernel modules..."),
+        ("configuring bootloader", 72, "Injecting system core bootloader..."),
+        ("creating user", 80, "Configuring system users..."),
         ("profile", 84, "Compiling environment configuration variables..."),
-        ("services", 93, "Enabling targeted network running services..."),
+        ("enabling service", 93, "Enabling targeted network running services..."),
+        ("creating initramfs", 96, "Generating initial ramdisk environment..."),
         ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
     with open(LOG_FILE, 'a') as master_log:
@@ -86,6 +113,10 @@ def run_archinstall():
             for key, pct, msg in indicators:
                 if key in lower_line and install_state["percentage"] < pct:
                     update_state(pct, msg, "running" if pct < 100 else "completed")
+            if ("installing" in lower_line or "downloading" in lower_line) and 28 <= install_state["percentage"] < 60:
+                new_pct = install_state["percentage"] + 1
+                if new_pct <= 59:
+                    update_state(new_pct, "Fetching and unpacking system components...", "running")
     process.wait()
     if process.returncode != 0 and install_state["status"] not in ["completed", "error"]:
         update_state(99, f"Archinstall crashed. Exit Code {process.returncode}. See Log.", "error")
@@ -110,7 +141,8 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             data = get_system_telemetry()
-            data['install_state'] = install_state
+            data['install_state'] = install_state.copy()
+            data['install_state']['logs'] = get_tail_logs()
             self.wfile.write(json.dumps(data).encode('utf-8'))
         elif path == '/api/progress':
             self.send_response(200)
@@ -118,7 +150,9 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             try:
                 while True:
-                    self.wfile.write(f"data: {json.dumps(install_state)}\n\n".encode('utf-8'))
+                    payload = install_state.copy()
+                    payload["logs"] = get_tail_logs()
+                    self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode('utf-8'))
                     self.wfile.flush()
                     if install_state["status"] in ["completed", "error"]: break
                     time.sleep(1)
