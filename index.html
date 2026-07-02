@@ -49,14 +49,17 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">System Locales</label>
                             <select id="sys_locale" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm mb-3">
-                                <option value="en_US.UTF-8">en_US.UTF-8</option>
-                                <option value="en_GB.UTF-8">en_GB.UTF-8</option>
-                                <option value="de_DE.UTF-8">de_DE.UTF-8</option>
-                                <option value="fr_FR.UTF-8">fr_FR.UTF-8</option>
+                                <option value="en_US.UTF-8">English (US)</option>
+                                <option value="en_GB.UTF-8">English (UK)</option>
+                                <option value="ar_EG.UTF-8">Arabic (Egypt)</option>
+                                <option value="de_DE.UTF-8">German</option>
+                                <option value="fr_FR.UTF-8">French</option>
+                                <option value="es_ES.UTF-8">Spanish</option>
                             </select>
                             <select id="kb_layout" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                                 <option value="us">US - United States</option>
                                 <option value="uk">UK - United Kingdom</option>
+                                <option value="ar">AR - Arabic</option>
                                 <option value="de">DE - German</option>
                                 <option value="fr">FR - French</option>
                                 <option value="es">ES - Spanish</option>
@@ -128,8 +131,12 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Bootloader Engine</label>
                             <select id="bootloader" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <option value="Grub">GRUB 2 (High Compatibility)</option>
                                 <option value="Systemd-boot">Systemd-boot (Modern UEFI)</option>
+                                <option value="Grub">GRUB 2 (High Compatibility)</option>
+                                <option value="Efistub">EFISTUB (UEFI Only)</option>
+                                <option value="Limine">Limine</option>
+                                <option value="Refind">rEFInd (UEFI Only)</option>
+                                <option value="No bootloader">No Bootloader</option>
                             </select>
                         </div>
                     </div>
@@ -163,11 +170,38 @@
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Desktop Profile</label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1" id="desktop-grid"></div>
                         </div>
-                        <div>
+                        <div id="profile-extras" style="display: none;" class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-200 pt-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Graphics Driver</label>
+                                <select id="gfx_driver" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                    <option value="All open-source">All open-source (Default)</option>
+                                    <option value="AMD / ATI (open-source)">AMD / ATI</option>
+                                    <option value="Intel (open-source)">Intel</option>
+                                    <option value="Nvidia (open kernel module for newer GPUs, Turing+)">Nvidia (Open Kernel Module)</option>
+                                    <option value="Nvidia (open-source nouveau driver)">Nvidia (Nouveau)</option>
+                                    <option value="VirtualBox (open-source)">VirtualBox</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Display Manager (Greeter)</label>
+                                <select id="greeter" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                    <option value="sddm">SDDM</option>
+                                    <option value="gdm">GDM</option>
+                                    <option value="lightdm-gtk-greeter">LightDM (GTK)</option>
+                                    <option value="lightdm-slick-greeter">LightDM (Slick)</option>
+                                    <option value="ly">Ly</option>
+                                    <option value="cosmic-greeter">Cosmic Greeter</option>
+                                    <option value="plasma-login-manager">Plasma Login</option>
+                                    <option value="dms-greeter">DMS Greeter</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-200 pt-4">
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Audio Server</label>
                             <select id="audio" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
                                 <option value="pipewire">Pipewire</option>
                                 <option value="pulseaudio">PulseAudio</option>
+                                <option value="No audio server">No Audio Server</option>
                             </select>
                         </div>
                     </div>
@@ -180,8 +214,10 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Network Manager</label>
                             <select id="net_type" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <option value="nm">NetworkManager</option>
-                                <option value="systemd">systemd-networkd</option>
+                                <option value="nm">NetworkManager (Default)</option>
+                                <option value="nm_iwd">NetworkManager + iwd backend</option>
+                                <option value="iwd">Standalone iwd</option>
+                                <option value="iso">Copy ISO Network Config</option>
                             </select>
                         </div>
                     </div>
@@ -261,8 +297,10 @@
         let partitions = [];
         let isUserScrollingLogs = false;
         let currentHighestPct = 0;
-        const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Cutefish","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","KDE Plasma","Labwc","Lxqt","Mate","Niri","Qtile","River","Sway","Xfce4","Xmonad","none"];
+        const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","Labwc","Lxqt","Mate","niri","niri - DankMaterialShell","KDE Plasma","Qtile","River","Sway","Xfce4","Xmonad","none"];
+        
         function genUUID() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }
+        
         window.onload = () => {
             initNavigationMenus();
             buildDesktopEnvironmentGrid();
@@ -270,6 +308,7 @@
             registerGlobalEventHooks();
             fetchSystemTelemetryData();
         };
+
         function resetPartitions() {
             partitions = [
                 { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 1024, unit: 'MiB' },
@@ -278,6 +317,7 @@
             renderPartitions();
             hideErrors();
         }
+
         function initNavigationMenus() {
             const destNav = document.getElementById('menu-desktop-nav');
             const mobSel = document.getElementById('mobile-step-select');
@@ -298,6 +338,7 @@
                 mobSel.appendChild(mobOpt);
             });
         }
+
         function buildDesktopEnvironmentGrid() {
             const grid = document.getElementById('desktop-grid');
             desktops.forEach(d => {
@@ -310,13 +351,16 @@
                 grid.appendChild(el);
             });
         }
+
         function hideErrors() {
             document.querySelectorAll('[id$="-error"]').forEach(el => el.classList.add('hidden'));
         }
+
         function displayError(id, msg) {
             const el = document.getElementById(id);
             if (el) { el.innerText = msg; el.classList.remove('hidden'); }
         }
+
         function validateStep(index) {
             hideErrors();
             if (index === 2) { 
@@ -360,8 +404,8 @@
             }
             if (index === 4) {
                 const selectedBootloader = document.getElementById('bootloader').value;
-                if (selectedBootloader === "Systemd-boot" && hostBootMode === "BIOS") {
-                    displayError('boot-error', "Systemd-boot requires a UEFI system. Your host environment is currently booted in legacy BIOS mode. Please select GRUB."); 
+                if ((selectedBootloader === "Systemd-boot" || selectedBootloader === "Efistub" || selectedBootloader === "Refind") && hostBootMode === "BIOS") {
+                    displayError('boot-error', `${selectedBootloader} requires a UEFI system. Your host environment is booted in legacy BIOS mode. Please select GRUB or Limine.`); 
                     return false;
                 }
             }
@@ -373,13 +417,17 @@
                 if (!document.getElementById('password').value.trim()) { displayError('auth-error', "A primary password must be set."); return false; }
             }
             if (index === 8) { 
-                if (!document.getElementById('hostname').value.trim()) { displayError('net-error', "A valid hostname is required."); return false; }
+                if (document.getElementById('net_type').value !== "iso" && !document.getElementById('hostname').value.trim()) { 
+                    displayError('net-error', "A valid hostname is required."); return false; 
+                }
             }
             return true;
         }
+
         function validateAll() {
             return validateStep(2) && validateStep(4) && validateStep(6) && validateStep(8);
         }
+
         function switchActiveWorkspaceModule(targetIndex) {
             if(targetIndex < 0 || targetIndex >= MODULES.length) return;
             if (activeIndex !== MODULES.length - 1 && targetIndex === MODULES.length - 1) {
@@ -408,6 +456,7 @@
                 nextBtn.className = "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors";
             }
         }
+
         function renderPartitions() {
             const list = document.getElementById('partition-list');
             list.innerHTML = '';
@@ -436,18 +485,26 @@
                 list.appendChild(row);
             });
         }
+
         function addPartitionRow() { partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'btrfs', size: 20, unit: 'GiB' }); renderPartitions(); }
+
         function selectDiskTargetVolume(val, bytes, el) {
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
             document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-3 text-sm font-medium border border-slate-200 rounded-lg cursor-pointer bg-white text-slate-600 transition-all hover:border-blue-300 shadow-sm");
             el.className = "disk-item p-3 text-sm font-bold border-2 border-blue-500 rounded-lg cursor-pointer text-blue-700 bg-blue-50 shadow-sm";
             hideErrors();
         }
+
         function selectDesktopProfileShell(val, el) {
             selectedDesktopVal = val;
             document.querySelectorAll('.desktop-item').forEach(i => i.className = "desktop-item p-2.5 text-xs font-semibold border rounded-lg cursor-pointer transition-all text-center text-slate-600 bg-white border-slate-200 hover:bg-slate-100");
             el.className = "desktop-item p-2.5 text-xs font-semibold border rounded-lg cursor-pointer transition-all text-center text-blue-700 bg-blue-50 border-blue-400 shadow-sm";
+            
+            const extras = document.getElementById('profile-extras');
+            if (val === "none") extras.style.display = 'none';
+            else extras.style.display = 'grid';
         }
+
         function updateLogsUI(logs) {
             if(!logs || !logs.length) return;
             const logOut = document.getElementById('log-output');
@@ -457,6 +514,7 @@
                 container.scrollTop = container.scrollHeight;
             }
         }
+
         function registerGlobalEventHooks() {
             document.getElementById('btn-next-step').addEventListener('click', () => {
                 if (activeIndex === MODULES.length - 1) {
@@ -507,6 +565,7 @@
                 isUserScrollingLogs = el.scrollHeight - el.scrollTop - el.clientHeight > 20;
             });
         }
+
         function fetchSystemTelemetryData() {
             fetch('/api/status').then(r => r.json()).then(data => {
                 hostBootMode = data.boot_mode || 'UEFI';
@@ -559,12 +618,14 @@
                 }
             }).catch(() => { document.getElementById('target-cpu').innerText = "Dev Mode"; });
         }
+
         async function transmitRuntimeJSONToEngine() {
             document.getElementById('nav-footer').style.display = 'none';
             document.getElementById('deploy-title').innerText = "Installing Arch Linux";
             document.getElementById('progress-msg').innerText = "Re-allocating sector blocks and writing system definitions...";
             document.getElementById('logs-wrapper').classList.remove('hidden');
             document.getElementById('logs-wrapper').classList.add('flex');
+
             let currentStartBytes = 1048576; 
             let btrfsConfigured = false;
             let fixedBytes = 0;
@@ -572,30 +633,63 @@
                 if (p.unit === 'MiB') fixedBytes += p.size * 1024 * 1024;
                 if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
             });
+
             let usableDiskBytes = selectedDiskBytes - 1048576; 
             let remainingPool = usableDiskBytes - currentStartBytes - fixedBytes;
+            
             const partsPayload = partitions.map(p => {
                 let pSizeB = 0;
                 if(p.unit === 'Percent') pSizeB = Math.floor(remainingPool * (p.size / 100));
                 else if(p.unit === 'MiB') pSizeB = p.size * 1024 * 1024;
                 else if(p.unit === 'GiB') pSizeB = p.size * 1024 * 1024 * 1024;
                 pSizeB = Math.floor(pSizeB / 512) * 512;
+                
                 const isBoot = (p.mountpoint === '/boot' || p.mountpoint === '/boot/efi' || p.fs === 'fat32');
                 const isBtrfs = p.fs === 'btrfs';
                 if(isBtrfs) btrfsConfigured = true;
-                const btrfsVols = (isBtrfs && p.mountpoint === '/') ? [ { "mountpoint": "/", "name": "@" }, { "mountpoint": "/home", "name": "@home" }, { "mountpoint": "/var/log", "name": "@log" }, { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" } ] : [];
-                const finalMountPoint = (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint;
-                const pObj = { "obj_id": p.id, "status": "create", "type": "primary", "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, "fs_type": p.fs, "mountpoint": finalMountPoint, "mount_options": isBtrfs ? ["compress=zstd"] : [], "flags": isBoot ? ["boot"] : [], "dev_path": null, "btrfs": btrfsVols };
+                
+                let btrfsVols = [];
+                let finalMountPoint = p.mountpoint;
+                if (isBtrfs && p.mountpoint === '/') {
+                    const hasSeparateHome = partitions.some(part => part.mountpoint === '/home' && part.id !== p.id);
+                    btrfsVols.push({ "mountpoint": "/", "name": "@" });
+                    btrfsVols.push({ "mountpoint": "/var/log", "name": "@log" });
+                    btrfsVols.push({ "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" });
+                    if (!hasSeparateHome) btrfsVols.push({ "mountpoint": "/home", "name": "@home" });
+                    finalMountPoint = null;
+                }
+                
+                let flags = [];
+                if (isBoot) flags.push("boot", "esp");
+                if (p.fs === "linux-swap") flags.push("swap");
+                if (p.mountpoint === "/home") flags.push("linux-home");
+                
+                const pObj = { 
+                    "obj_id": p.id, 
+                    "status": "create", 
+                    "type": "primary", 
+                    "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, 
+                    "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, 
+                    "fs_type": p.fs, 
+                    "mountpoint": finalMountPoint, 
+                    "mount_options": isBtrfs ? ["compress=zstd"] : [], 
+                    "flags": flags, 
+                    "dev_path": null, 
+                    "btrfs": btrfsVols 
+                };
                 currentStartBytes += pSizeB; 
                 return pObj;
             });
+            
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
             const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
             const extraPkgs = document.getElementById('extra_packages').value.split(',').map(s => s.trim()).filter(s => s);
             const userGroupsRaw = document.getElementById('user_groups').value.split(',').map(s => s.trim()).filter(s => s);
             if(!userGroupsRaw.includes('wheel')) userGroupsRaw.push('wheel');
+            
             const configPayload = {
-                "version": "4.3", "archinstall-language": "English",
+                "version": "4.3", 
+                "archinstall-language": document.getElementById('arch_lang').value,
                 "app_config": { "audio_config": { "audio": document.getElementById('audio').value } },
                 "bootloader_config": { "bootloader": document.getElementById('bootloader').value, "removable": false, "uki": false },
                 "disk_config": { "config_type": "default_layout", "device_modifications": [{ "device": selectedDiskVal || "/dev/sda", "wipe": true, "partitions": partsPayload }] },
@@ -610,27 +704,47 @@
                 "timezone": document.getElementById('timezone').value,
                 "packages": extraPkgs
             };
+            
             configPayload.mirror_config.mirror_regions[document.getElementById('mirror_region').value] = ["https://geo.mirror.pkgbuild.com/$repo/os/$arch"];
             if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
             if (document.getElementById('srv_bluetooth') && document.getElementById('srv_bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
             if (document.getElementById('srv_firewall') && document.getElementById('srv_firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
             if (document.getElementById('srv_cups') && document.getElementById('srv_cups').checked) configPayload.app_config.print_service_config = { "enabled": true };
+            
             if (selectedDesktopVal !== "none") {
                 let mainType = "Desktop";
-                const wms = ["Awesome","Bspwm","Hyprland","i3-wm","Labwc","Niri","Qtile","River","Sway","Xmonad"];
-                const polkits = ["Hyprland","Sway","Labwc","Niri"];
+                const wms = ["Awesome","Bspwm","Hyprland","i3-wm","Labwc","niri","Qtile","River","Sway","Xmonad"];
+                const polkits = ["Hyprland","Sway","Labwc","niri"];
                 if (wms.includes(selectedDesktopVal)) mainType = "WindowMgr";
-                let cSettings = {}; cSettings[selectedDesktopVal] = {};
+                
+                let cSettings = {}; 
+                cSettings[selectedDesktopVal] = {};
                 if(polkits.includes(selectedDesktopVal)) cSettings[selectedDesktopVal].seat_access = "polkit";
                 if(selectedDesktopVal === "KDE Plasma") cSettings[selectedDesktopVal].plasma_flavor = "plasma-meta";
-                configPayload.profile_config = { "gfx_driver": "All open-source", "greeter": "sddm", "profile": { "custom_settings": cSettings, "details": [selectedDesktopVal], "main": mainType } };
+                
+                configPayload.profile_config = { 
+                    "gfx_driver": document.getElementById('gfx_driver').value, 
+                    "greeter": document.getElementById('greeter').value, 
+                    "profile": { "custom_settings": cSettings, "details": [selectedDesktopVal], "main": mainType } 
+                };
             }
-            const credsPayload = { "users": [{ "username": document.getElementById('username').value.toLowerCase(), "password": document.getElementById('password').value, "groups": userGroupsRaw, "sudo": true }] };
+            
+            const credsPayload = { 
+                "users": [{ 
+                    "username": document.getElementById('username').value.toLowerCase(), 
+                    "!password": document.getElementById('password').value, 
+                    "groups": userGroupsRaw, 
+                    "sudo": true 
+                }] 
+            };
+            
             const rootPass = document.getElementById('root_password').value;
-            if (rootPass) credsPayload["root_password"] = rootPass;
+            if (rootPass) credsPayload["!root_password"] = rootPass;
+
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             initializeLiveProgressEventStream();
         }
+
         function initializeLiveProgressEventStream() {
             const stream = new EventSource('/api/progress');
             stream.onmessage = (event) => {
