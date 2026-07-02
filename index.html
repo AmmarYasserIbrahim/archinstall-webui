@@ -220,13 +220,13 @@
                             </div>
                             <button type="button" id="btn-reboot" class="hidden w-full bg-slate-800 hover:bg-black text-white font-bold py-3.5 rounded-lg text-sm transition-all shadow-md uppercase tracking-wider shrink-0 mb-4">Reboot System</button>
                             
-                            <div id="logs-wrapper" class="hidden flex-col flex-1 min-h-0 mt-2 shrink-0">
-                                <button type="button" id="btn-toggle-logs" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center justify-center gap-1 py-1 shrink-0">
+                            <div id="logs-wrapper" class="hidden flex-col w-full mt-2 shrink-0">
+                                <button type="button" id="btn-toggle-logs" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center justify-center gap-1 py-1 shrink-0 mx-auto">
                                     <span id="log-toggle-text">Show Detailed Logs</span>
                                     <svg id="log-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </button>
-                                <div id="log-container" class="hidden flex-col bg-[#1e1e2e] rounded-lg p-3 overflow-y-auto custom-scrollbar border border-slate-200 shadow-inner flex-1 mt-2 min-h-[140px]">
-                                    <pre id="log-output" class="font-mono text-[10px] leading-relaxed text-[#a6accd] whitespace-pre-wrap break-words text-left m-0"></pre>
+                                <div id="log-container" class="hidden bg-[#1e1e2e] rounded-lg p-3 overflow-y-auto custom-scrollbar border border-slate-200 shadow-inner w-full mt-2 h-[200px] text-left">
+                                    <pre id="log-output" class="font-mono text-[10px] leading-relaxed text-[#a6accd] whitespace-pre-wrap break-words m-0"></pre>
                                 </div>
                             </div>
                         </div>
@@ -488,14 +488,14 @@
                 const parentFlex = document.getElementById('deploy-wrapper');
                 if (container.classList.contains('hidden')) {
                     container.classList.remove('hidden');
-                    container.classList.add('flex');
+                    container.classList.add('block');
                     icon.classList.add('rotate-180');
                     txt.innerText = 'Hide Detailed Logs';
                     parentFlex.classList.remove('justify-center');
                     container.scrollTop = container.scrollHeight;
                 } else {
                     container.classList.add('hidden');
-                    container.classList.remove('flex');
+                    container.classList.remove('block');
                     icon.classList.remove('rotate-180');
                     txt.innerText = 'Show Detailed Logs';
                     parentFlex.classList.add('justify-center');
