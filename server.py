@@ -38,13 +38,9 @@ def get_system_telemetry():
 
 def run_archinstall():
     update_state(2, "Clearing disk locks and orphaned mounts...", "running")
-    
-    # 1. Turn off swap and force recursive unmount safely
     os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
     os.system('umount -R /mnt >> /tmp/archinstall-webui.log 2>&1')
     os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
-    
-    # 2. Aggressive Target Disk Zapping
     try:
         with open(CONFIG_PATH, 'r') as f:
             config = json.load(f)
@@ -52,31 +48,19 @@ def run_archinstall():
             for mod in devices:
                 dev = mod.get('device')
                 if dev:
-                    # Force unmount any specific partitions on this drive
                     os.system(f'umount -f {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'umount -l {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    
-                    # Destroy filesystem signatures so udev releases it
                     os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
                     os.system(f'wipefs -af {dev} >> /tmp/archinstall-webui.log 2>&1')
-                    
-                    # Zap GPT/MBR partition tables completely
                     os.system(f'sgdisk --zap-all {dev} >> /tmp/archinstall-webui.log 2>&1')
-                    
-                    # Force the kernel to immediately re-read the now-empty block device
                     os.system(f'partprobe {dev} >> /tmp/archinstall-webui.log 2>&1')
     except Exception as e:
         pass
-
-    # Give the kernel and udev a moment to settle down after the wipe
     time.sleep(2) 
-
     update_state(5, "Synchronizing pacman mirror repositories...", "running")
     os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
-    
     cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    
     indicators = [
         ("formatting", 15, "Formatting storage block partitions..."),
         ("waiting for time sync", 22, "Synchronizing network precision NTP clocks..."),
@@ -86,19 +70,20 @@ def run_archinstall():
         ("services", 93, "Enabling targeted network running services..."),
         ("installation completed", 100, "Build Successful! Node is safe for hardware restart cycles.")
     ]
-
     with open(LOG_FILE, 'a') as master_log:
         for line in process.stdout:
             master_log.write(f"[ARCHINSTALL] {line}")
             master_log.flush()
             lower_line = line.lower()
-            
+            if "error:" in lower_line or "requires a uefi system" in lower_line:
+                update_state(99, f"Fatal Error: {line.strip()}", "error")
+                process.kill()
+                break
             for key, pct, msg in indicators:
                 if key in lower_line and install_state["percentage"] < pct:
                     update_state(pct, msg, "running" if pct < 100 else "completed")
-
     process.wait()
-    if process.returncode != 0 and install_state["status"] != "completed":
+    if process.returncode != 0 and install_state["status"] not in ["completed", "error"]:
         update_state(99, f"Archinstall crashed. Exit Code {process.returncode}. See Log.", "error")
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
@@ -108,11 +93,9 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         super().end_headers()
-
     def do_OPTIONS(self): 
         self.send_response(200, "ok")
         self.end_headers()
-
     def do_GET(self):
         path = urlparse(self.path).path
         if path == '/': 
@@ -138,7 +121,6 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             except: pass
         else: 
             return super().do_GET()
-
     def do_POST(self):
         path = urlparse(self.path).path
         if path == '/api/submit':

@@ -12,8 +12,6 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Custom range slider styling */
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #2563eb; cursor: pointer; margin-top: -6px; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
@@ -21,7 +19,6 @@
 </head>
 <body class="bg-slate-100 font-sans fixed inset-0 overflow-hidden flex items-center justify-center p-0 lg:p-4 text-slate-800">
     <div class="bg-white lg:rounded-2xl shadow-2xl w-full max-w-5xl h-full flex flex-col lg:flex-row overflow-hidden border border-slate-200">
-        
         <div class="w-full lg:w-[280px] bg-slate-50 flex flex-col p-4 border-b lg:border-b-0 lg:border-r border-slate-200 shrink-0">
             <div class="flex items-center gap-3 mb-4">
                 <div class="bg-blue-600 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center shadow-md">A</div>
@@ -30,24 +27,18 @@
                     <span class="text-[10px] text-slate-500 font-mono block" id="target-cpu">Connecting...</span>
                 </div>
             </div>
-
             <div class="lg:hidden mb-2">
                 <select id="mobile-step-select" class="w-full bg-white border border-slate-300 text-sm font-semibold rounded-md px-3 py-2 text-slate-700 outline-none focus:border-blue-500 shadow-sm"></select>
             </div>
-
             <div class="flex-grow overflow-y-auto custom-scrollbar hidden lg:block pr-2 space-y-1" id="menu-desktop-nav"></div>
         </div>
-
         <div class="flex-1 flex flex-col bg-white relative min-h-0">
-            
             <div class="shrink-0 px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-white z-10 shadow-sm">
                 <h2 id="view-title" class="text-xl font-bold text-slate-800">Language & Locales</h2>
                 <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border border-slate-200" id="step-counter">Step 1</span>
             </div>
-
             <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50 min-h-0">
                 <form id="installer-config-form" class="max-w-2xl mx-auto pb-4">
-                    
                     <div id="panel-locales" class="config-panel space-y-5 block">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Archinstall Language</label>
@@ -72,7 +63,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div id="panel-mirrors" class="config-panel space-y-5 hidden">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             <div>
@@ -105,10 +95,8 @@
                             </div>
                         </div>
                     </div>
-
                     <div id="panel-disk" class="config-panel space-y-6 hidden">
                         <div id="disk-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
-
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Target Block Storage</label>
                             <div class="border border-slate-300 rounded-lg overflow-y-auto max-h-40 bg-white shadow-sm flex flex-col gap-1 p-1" id="disk-list"></div>
@@ -126,7 +114,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div id="panel-swap" class="config-panel hidden">
                         <label class="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
                             <input type="checkbox" id="swap_enabled" checked class="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
@@ -136,15 +123,16 @@
                             </div>
                         </label>
                     </div>
-
-                    <div id="panel-boot" class="config-panel hidden">
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Bootloader Engine</label>
-                        <select id="bootloader" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                            <option value="Grub">GRUB 2 (High Compatibility)</option>
-                            <option value="Systemd-boot">Systemd-boot (Modern UEFI)</option>
-                        </select>
+                    <div id="panel-boot" class="config-panel space-y-5 hidden">
+                        <div id="boot-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Bootloader Engine</label>
+                            <select id="bootloader" class="w-full border border-slate-300 bg-white rounded-lg py-2.5 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                <option value="Grub">GRUB 2 (High Compatibility)</option>
+                                <option value="Systemd-boot">Systemd-boot (Modern UEFI)</option>
+                            </select>
+                        </div>
                     </div>
-
                     <div id="panel-kernel" class="config-panel hidden">
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Linux Kernel Trunks (Multi-Select)</label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -154,7 +142,6 @@
                             <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm cursor-pointer hover:border-blue-300"><input type="checkbox" value="linux-hardened" class="kernel-cb text-blue-600 rounded"> linux-hardened</label>
                         </div>
                     </div>
-
                     <div id="panel-auth" class="config-panel space-y-5 hidden">
                         <div id="auth-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
                         <div>
@@ -171,7 +158,6 @@
                             <input type="text" id="user_groups" value="wheel" placeholder="e.g. wheel, docker, libvirt" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm font-mono text-slate-600">
                         </div>
                     </div>
-
                     <div id="panel-profile" class="config-panel space-y-6 hidden">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Desktop Profile</label>
@@ -185,7 +171,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div id="panel-network" class="config-panel space-y-5 hidden">
                         <div id="net-error" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg text-sm text-red-700 font-medium shadow-sm"></div>
                         <div>
@@ -200,7 +185,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div id="panel-time" class="config-panel space-y-5 hidden">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -223,12 +207,10 @@
                             </div>
                         </div>
                     </div>
-
                     <div id="panel-deploy" class="config-panel hidden h-full flex flex-col justify-center py-4 text-center">
                         <div class="max-w-md mx-auto w-full">
                             <h2 class="text-2xl font-bold text-slate-800 mb-2" id="deploy-title">Ready to Install</h2>
                             <p id="progress-msg" class="text-sm font-medium text-slate-500 mb-8">Review your selections using the sidebar menu. Click Install when ready.</p>
-                            
                             <div class="flex justify-between items-end mb-2 px-1">
                                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Progress</span>
                                 <span id="progress-pct" class="text-xl font-black text-blue-600">0%</span>
@@ -241,14 +223,12 @@
                     </div>
                 </form>
             </div>
-
             <div id="nav-footer" class="shrink-0 px-6 py-4 bg-white border-t border-slate-200 flex justify-between items-center z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 <button type="button" id="btn-back-step" class="text-slate-500 hover:text-slate-800 font-semibold text-sm py-2 px-4 rounded-lg transition-colors invisible">Back</button>
                 <button type="button" id="btn-next-step" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors">Continue</button>
             </div>
         </div>
     </div>
-
     <script>
         const MODULES = [
             { id: 'locales', label: 'Language & Locales' },
@@ -263,18 +243,14 @@
             { id: 'time', label: 'Timezone & Packages' },
             { id: 'deploy', label: 'Install' }
         ];
-
         let activeIndex = 0;
         let selectedDiskVal = "";
         let selectedDiskBytes = 0;
         let selectedDesktopVal = "none";
-
+        let hostBootMode = "UEFI";
         let partitions = [];
-
         const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Cutefish","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","KDE Plasma","Labwc","Lxqt","Mate","Niri","Qtile","River","Sway","Xfce4","Xmonad","none"];
-
         function genUUID() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }
-
         window.onload = () => {
             initNavigationMenus();
             buildDesktopEnvironmentGrid();
@@ -282,7 +258,6 @@
             registerGlobalEventHooks();
             fetchSystemTelemetryData();
         };
-
         function resetPartitions() {
             partitions = [
                 { id: genUUID(), mountpoint: '/boot', fs: 'fat32', size: 1024, unit: 'MiB' },
@@ -291,32 +266,26 @@
             renderPartitions();
             hideErrors();
         }
-
         function initNavigationMenus() {
             const destNav = document.getElementById('menu-desktop-nav');
             const mobSel = document.getElementById('mobile-step-select');
             destNav.innerHTML = ''; mobSel.innerHTML = '';
-
             MODULES.forEach((mod, index) => {
                 const navItem = document.createElement('button');
                 navItem.type = "button";
                 navItem.className = `w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center ${index === activeIndex ? 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200' : 'text-slate-600 hover:bg-slate-200 border border-transparent'}`;
                 navItem.id = `nav-btn-${mod.id}`;
                 navItem.innerText = mod.label;
-                
                 navItem.onclick = () => {
                     if (validateStep(activeIndex)) switchActiveWorkspaceModule(index);
                 };
-                
                 destNav.appendChild(navItem);
-
                 const mobOpt = document.createElement('option');
                 mobOpt.value = index;
                 mobOpt.innerText = `${mod.label}`;
                 mobSel.appendChild(mobOpt);
             });
         }
-
         function buildDesktopEnvironmentGrid() {
             const grid = document.getElementById('desktop-grid');
             desktops.forEach(d => {
@@ -329,19 +298,15 @@
                 grid.appendChild(el);
             });
         }
-
         function hideErrors() {
             document.querySelectorAll('[id$="-error"]').forEach(el => el.classList.add('hidden'));
         }
-
         function displayError(id, msg) {
             const el = document.getElementById(id);
             if (el) { el.innerText = msg; el.classList.remove('hidden'); }
         }
-
         function validateStep(index) {
             hideErrors();
-
             if (index === 2) { 
                 if (!selectedDiskVal) { 
                     displayError('disk-error', "You must select a target block storage device."); 
@@ -351,11 +316,9 @@
                     displayError('disk-error', "You must configure at least a boot and root partition."); 
                     return false;
                 }
-                
                 let hasRoot = false, hasBoot = false;
                 let fixedBytes = 0, pctTotal = 0;
                 let usableBytes = selectedDiskBytes - (2 * 1024 * 1024); 
-
                 for (let i=0; i<partitions.length; i++) {
                     let p = partitions[i];
                     if (!p.mountpoint || p.mountpoint.trim() === "") { 
@@ -366,7 +329,6 @@
                         displayError('disk-error', `Partition row ${i+1} has an invalid size.`); 
                         return false; 
                     }
-                    
                     if (p.mountpoint === "/") hasRoot = true;
                     if (p.mountpoint === "/boot" || p.mountpoint === "/boot/efi") {
                         hasBoot = true;
@@ -375,60 +337,53 @@
                             return false;
                         }
                     }
-
                     if (p.unit === 'MiB') fixedBytes += p.size * 1024 * 1024;
                     else if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
                     else if (p.unit === 'Percent') pctTotal += p.size;
                 }
-
                 if (!hasBoot) { displayError('disk-error', "A boot partition (mounted at /boot) is strictly required."); return false; }
                 if (!hasRoot) { displayError('disk-error', "A root partition (mounted at /) is strictly required."); return false; }
-                
                 if (pctTotal > 100) { displayError('disk-error', "Percentage allocations mathematically exceed 100%."); return false; }
                 if (fixedBytes > usableBytes) { displayError('disk-error', "The absolute file sizes exceed the physical capacity of the drive."); return false; }
             }
-            
+            if (index === 4) {
+                const selectedBootloader = document.getElementById('bootloader').value;
+                if (selectedBootloader === "Systemd-boot" && hostBootMode === "BIOS") {
+                    displayError('boot-error', "Systemd-boot requires a UEFI system. Your host environment is currently booted in legacy BIOS mode. Please select GRUB."); 
+                    return false;
+                }
+            }
             if (index === 6) { 
                 if (!document.getElementById('username').value.trim()) { displayError('auth-error', "A primary username is required."); return false; }
                 if (!document.getElementById('password').value.trim()) { displayError('auth-error', "A primary password must be set."); return false; }
             }
-
             if (index === 8) { 
                 if (!document.getElementById('hostname').value.trim()) { displayError('net-error', "A valid hostname is required."); return false; }
             }
-
             return true;
         }
-
         function validateAll() {
-            return validateStep(2) && validateStep(6) && validateStep(8);
+            return validateStep(2) && validateStep(4) && validateStep(6) && validateStep(8);
         }
-
         function switchActiveWorkspaceModule(targetIndex) {
             if(targetIndex < 0 || targetIndex >= MODULES.length) return;
-            
             if (activeIndex !== MODULES.length - 1 && targetIndex === MODULES.length - 1) {
                 document.getElementById('deploy-title').innerText = "Ready to Install";
                 document.getElementById('progress-msg').innerText = "Click 'Start Installation' below to format your drives and deploy Arch Linux.";
             }
-
             document.getElementById(`panel-${MODULES[activeIndex].id}`).classList.replace('block', 'hidden');
             activeIndex = targetIndex;
             document.getElementById(`panel-${MODULES[activeIndex].id}`).classList.replace('hidden', 'block');
-
             MODULES.forEach((mod, idx) => {
                 const btn = document.getElementById(`nav-btn-${mod.id}`);
                 btn.className = `w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center ${idx === activeIndex ? 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200' : 'text-slate-600 hover:bg-slate-200 border border-transparent'}`;
             });
-
             document.getElementById('mobile-step-select').value = activeIndex;
             document.getElementById('view-title').innerText = MODULES[activeIndex].label;
             document.getElementById('step-counter').innerText = `Step ${activeIndex + 1} of ${MODULES.length}`;
-            
             const backBtn = document.getElementById('btn-back-step');
             if (activeIndex > 0) backBtn.classList.remove('invisible');
             else backBtn.classList.add('invisible');
-            
             const nextBtn = document.getElementById('btn-next-step');
             if (activeIndex === MODULES.length - 1) {
                 nextBtn.innerText = "Start Installation";
@@ -438,7 +393,6 @@
                 nextBtn.className = "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors";
             }
         }
-
         function renderPartitions() {
             const list = document.getElementById('partition-list');
             list.innerHTML = '';
@@ -467,22 +421,18 @@
                 list.appendChild(row);
             });
         }
-
         function addPartitionRow() { partitions.push({ id: genUUID(), mountpoint: '/home', fs: 'btrfs', size: 20, unit: 'GiB' }); renderPartitions(); }
-
         function selectDiskTargetVolume(val, bytes, el) {
             selectedDiskVal = val; selectedDiskBytes = parseInt(bytes);
             document.querySelectorAll('.disk-item').forEach(i => i.className = "disk-item p-3 text-sm font-medium border border-slate-200 rounded-lg cursor-pointer bg-white text-slate-600 transition-all hover:border-blue-300 shadow-sm");
             el.className = "disk-item p-3 text-sm font-bold border-2 border-blue-500 rounded-lg cursor-pointer text-blue-700 bg-blue-50 shadow-sm";
             hideErrors();
         }
-
         function selectDesktopProfileShell(val, el) {
             selectedDesktopVal = val;
             document.querySelectorAll('.desktop-item').forEach(i => i.className = "desktop-item p-2.5 text-xs font-semibold border rounded-lg cursor-pointer transition-all text-center text-slate-600 bg-white border-slate-200 hover:bg-slate-100");
             el.className = "desktop-item p-2.5 text-xs font-semibold border rounded-lg cursor-pointer transition-all text-center text-blue-700 bg-blue-50 border-blue-400 shadow-sm";
         }
-
         function registerGlobalEventHooks() {
             document.getElementById('btn-next-step').addEventListener('click', () => {
                 if (activeIndex === MODULES.length - 1) {
@@ -491,12 +441,10 @@
                     if (validateStep(activeIndex)) switchActiveWorkspaceModule(activeIndex + 1);
                 }
             });
-
             document.getElementById('btn-back-step').addEventListener('click', () => {
                 hideErrors();
                 if (activeIndex > 0) switchActiveWorkspaceModule(activeIndex - 1);
             });
-
             document.getElementById('mobile-step-select').addEventListener('change', (e) => {
                 const target = parseInt(e.target.value);
                 if (validateStep(activeIndex)) {
@@ -505,35 +453,37 @@
                     document.getElementById('mobile-step-select').value = activeIndex;
                 }
             });
-            
             document.getElementById('btn-reboot').addEventListener('click', async () => {
                 document.getElementById('btn-reboot').innerText = "Rebooting Hardware...";
                 document.getElementById('btn-reboot').className = "w-full bg-slate-400 text-white font-bold py-3.5 rounded-lg text-sm shadow-md uppercase tracking-wider cursor-not-allowed";
                 await fetch('/api/reboot', { method: 'POST' });
             });
         }
-
         function fetchSystemTelemetryData() {
             fetch('/api/status').then(r => r.json()).then(data => {
-                document.getElementById('target-cpu').innerText = `${data.cpu || 'x86_64 Host'} | ${data.boot_mode || 'UEFI'}`;
-                
+                hostBootMode = data.boot_mode || 'UEFI';
+                document.getElementById('target-cpu').innerText = `${data.cpu || 'x86_64 Host'} | ${hostBootMode}`;
                 if(data.install_state && data.install_state.status !== "idle") {
                     switchActiveWorkspaceModule(MODULES.length - 1);
+                    document.getElementById('nav-footer').style.display = 'none';
+                    document.getElementById('progress-pct').innerText = `${data.install_state.percentage}%`;
+                    document.getElementById('progress-bar-fill').style.width = `${data.install_state.percentage}%`;
+                    document.getElementById('progress-msg').innerText = data.install_state.message;
                     if(data.install_state.status === "completed") {
                         document.getElementById('deploy-title').innerText = "Installation Successful";
-                        document.getElementById('progress-pct').innerText = "100%";
-                        document.getElementById('progress-bar-fill').style.width = "100%";
                         document.getElementById('btn-reboot').classList.remove('hidden');
-                        document.getElementById('nav-footer').style.display = 'none';
+                    } else if (data.install_state.status === "error") {
+                        document.getElementById('deploy-title').innerText = "Deployment Halted";
+                        document.getElementById('progress-msg').className = "text-sm font-medium text-red-500 mb-8";
+                        document.getElementById('progress-pct').className = "text-xl font-black text-red-600";
+                        document.getElementById('progress-bar-fill').className = "bg-red-600 h-full rounded-full w-full";
                     } else {
                         initializeLiveProgressEventStream();
                     }
                     return;
                 }
-
                 const diskList = document.getElementById('disk-list');
                 diskList.innerHTML = ''; let isFirst = true;
-                
                 if (data.hardware && data.hardware.blockdevices) {
                     data.hardware.blockdevices.forEach(dev => {
                         if(dev.type === 'disk') {
@@ -550,53 +500,39 @@
                 }
             }).catch(() => { document.getElementById('target-cpu').innerText = "Dev Mode"; });
         }
-
         async function transmitRuntimeJSONToEngine() {
             document.getElementById('nav-footer').style.display = 'none';
             document.getElementById('deploy-title').innerText = "Installing Arch Linux";
             document.getElementById('progress-msg').innerText = "Re-allocating sector blocks and writing system definitions...";
-
             let currentStartBytes = 1048576; 
             let btrfsConfigured = false;
-            
             let fixedBytes = 0;
             partitions.forEach(p => {
                 if (p.unit === 'MiB') fixedBytes += p.size * 1024 * 1024;
                 if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
             });
-            
             let usableDiskBytes = selectedDiskBytes - 1048576; 
             let remainingPool = usableDiskBytes - currentStartBytes - fixedBytes;
-
             const partsPayload = partitions.map(p => {
                 let pSizeB = 0;
                 if(p.unit === 'Percent') pSizeB = Math.floor(remainingPool * (p.size / 100));
                 else if(p.unit === 'MiB') pSizeB = p.size * 1024 * 1024;
                 else if(p.unit === 'GiB') pSizeB = p.size * 1024 * 1024 * 1024;
-
                 pSizeB = Math.floor(pSizeB / 512) * 512;
-
                 const isBoot = (p.mountpoint === '/boot' || p.mountpoint === '/boot/efi' || p.fs === 'fat32');
                 const isBtrfs = p.fs === 'btrfs';
                 if(isBtrfs) btrfsConfigured = true;
-                
                 const btrfsVols = (isBtrfs && p.mountpoint === '/') ? [ { "mountpoint": "/", "name": "@" }, { "mountpoint": "/home", "name": "@home" }, { "mountpoint": "/var/log", "name": "@log" }, { "mountpoint": "/var/cache/pacman/pkg", "name": "@pkg" } ] : [];
                 const finalMountPoint = (isBtrfs && p.mountpoint === '/') ? null : p.mountpoint;
-                
                 const pObj = { "obj_id": p.id, "status": "create", "type": "primary", "start": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": currentStartBytes }, "size": { "sector_size": {"unit": "B", "value": 512}, "unit": "B", "value": pSizeB }, "fs_type": p.fs, "mountpoint": finalMountPoint, "mount_options": isBtrfs ? ["compress=zstd"] : [], "flags": isBoot ? ["boot"] : [], "dev_path": null, "btrfs": btrfsVols };
-                
                 currentStartBytes += pSizeB; 
                 return pObj;
             });
-
             const selKernels = Array.from(document.querySelectorAll('.kernel-cb:checked')).map(cb => cb.value);
             const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
             const extraPkgs = document.getElementById('extra_packages').value.split(',').map(s => s.trim()).filter(s => s);
-            
-            // Extract custom comma-separated user groups, trim them, filter out empties, and always append 'wheel'
             const userGroupsRaw = document.getElementById('user_groups').value.split(',').map(s => s.trim()).filter(s => s);
             if(!userGroupsRaw.includes('wheel')) userGroupsRaw.push('wheel');
-
             const configPayload = {
                 "version": "4.3", "archinstall-language": "English",
                 "app_config": { "audio_config": { "audio": document.getElementById('audio').value } },
@@ -614,12 +550,10 @@
                 "packages": extraPkgs
             };
             configPayload.mirror_config.mirror_regions[document.getElementById('mirror_region').value] = ["https://geo.mirror.pkgbuild.com/$repo/os/$arch"];
-
             if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
             if (document.getElementById('srv_bluetooth') && document.getElementById('srv_bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
             if (document.getElementById('srv_firewall') && document.getElementById('srv_firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
             if (document.getElementById('srv_cups') && document.getElementById('srv_cups').checked) configPayload.app_config.print_service_config = { "enabled": true };
-
             if (selectedDesktopVal !== "none") {
                 let mainType = "Desktop";
                 const wms = ["Awesome","Bspwm","Hyprland","i3-wm","Labwc","Niri","Qtile","River","Sway","Xmonad"];
@@ -630,15 +564,12 @@
                 if(selectedDesktopVal === "KDE Plasma") cSettings[selectedDesktopVal].plasma_flavor = "plasma-meta";
                 configPayload.profile_config = { "gfx_driver": "All open-source", "greeter": "sddm", "profile": { "custom_settings": cSettings, "details": [selectedDesktopVal], "main": mainType } };
             }
-
             const credsPayload = { "root_enc_password": null, "users": [{ "username": document.getElementById('username').value, "enc_password": null, "password": document.getElementById('password').value, "groups": userGroupsRaw, "sudo": true }] };
             const rootPass = document.getElementById('root_password').value;
             if (rootPass) credsPayload["root-password"] = rootPass;
-
             await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
             initializeLiveProgressEventStream();
         }
-
         function initializeLiveProgressEventStream() {
             const stream = new EventSource('/api/progress');
             stream.onmessage = (event) => {
@@ -646,7 +577,6 @@
                 document.getElementById('progress-msg').innerText = data.message;
                 document.getElementById('progress-pct').innerText = `${data.percentage}%`;
                 document.getElementById('progress-bar-fill').style.width = `${data.percentage}%`;
-                
                 if(data.status === "error") {
                     document.getElementById('deploy-title').innerText = "Deployment Halted";
                     document.getElementById('progress-msg').className = "text-sm font-medium text-red-500 mb-8";
