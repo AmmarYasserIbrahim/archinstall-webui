@@ -20,6 +20,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 print_step "1/4" "Synchronizing system package databases"
+echo 'Server = http://192.168.160.137:9129/repo/archlinux/$repo/os/$arch' > /etc/pacman.d/mirrorlist
 mkdir -p /var/cache/pacman/pkg
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1 || print_error "Failed to install dependencies."
 print_success "Dependencies installed successfully"
