@@ -747,7 +747,7 @@
                 "packages": extraPkgs
             };
             
-            configPayload.mirror_config.mirror_regions[document.getElementById('mirror_region').value] = ["http://192.168.160.137:9129/repo/archlinux/$repo/os/$arch"];
+            configPayload.mirror_config = { "mirror_regions": { "Custom": ["http://192.168.160.137:9129/repo/archlinux/$repo/os/$arch"] }, "custom_config": true };
             if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
             if (document.getElementById('srv_bluetooth') && document.getElementById('srv_bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
             if (document.getElementById('srv_firewall') && document.getElementById('srv_firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
