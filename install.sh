@@ -20,8 +20,17 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 print_step "1/4" "Synchronizing system package databases"
-echo 'Server = http://192.168.160.137:9129/repo/archlinux/$repo/os/$arch' > /etc/pacman.d/mirrorlist
 mkdir -p /var/cache/pacman/pkg
+
+# 1. The Bulletproof Reflector Bypass
+# Rename the real tool and replace it with a dummy script that instantly succeeds
+mv /usr/bin/reflector /usr/bin/reflector.bak
+echo -e '#!/bin/bash\nexit 0' > /usr/bin/reflector
+chmod +x /usr/bin/reflector
+
+# 2. Safely hardcode your Alpine cache IP (it is now safe from being overwritten)
+echo 'Server = http://192.168.160.137:9129/repo/archlinux/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+
 pacman -Sy --noconfirm qrencode archinstall >> "$LOG_FILE" 2>&1 || print_error "Failed to install dependencies."
 print_success "Dependencies installed successfully"
 
