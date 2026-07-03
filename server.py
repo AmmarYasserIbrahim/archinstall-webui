@@ -187,8 +187,17 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         if path == '/api/submit':
             length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(length))
+            
+            # --- THE FINAL MIRROR FIX ---
+            # Strip mirror regions from the payload so archinstall leaves the file alone,
+            # but keep optional_repositories (like multilib) intact.
+            if 'config' in post_data and 'mirror_config' in post_data['config']:
+                post_data['config']['mirror_config'].pop('mirror_regions', None)
+            # ----------------------------
+
             with open(CONFIG_PATH, 'w') as f: json.dump(post_data.get('config', {}), f, indent=4)
             with open(CREDS_PATH, 'w') as f: json.dump(post_data.get('creds', {}), f, indent=4)
+            
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
