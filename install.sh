@@ -34,7 +34,8 @@ pacman -Sy --noconfirm qrencode python >> "$LOG_FILE" 2>&1 || print_error "Faile
 print_success "Dependencies installed"
 
 print_step "2/4" "Pulling WebUI repository assets"
-mkdir -p "$RUN_DIR" && cd "$RUN_DIR" || print_error "Failed to create runtime directory."
+mkdir -p "$RUN_DIR"
+cd "$RUN_DIR" || print_error "Failed to create runtime directory."
 curl -fsS -o server.py "${REPO_RAW_URL}/server.py" >> "$LOG_FILE" 2>&1 || print_error "Failed to download server.py"
 curl -fsS -o index.html "${REPO_RAW_URL}/index.html" >> "$LOG_FILE" 2>&1 || print_error "Failed to download index.html"
 print_success "Application logic downloaded"
@@ -56,7 +57,7 @@ LOCAL_IP=$(ip -o -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([0-9.]\+\)
 PUBLIC_URL=""
 if [ "$TUNNEL_MODE" = "auto" ] || [ "$TUNNEL_MODE" = "localhostrun" ]; then
     ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=10 -o ConnectTimeout=5 \
-        -R 80:localhost:${PORT} "nokey@${PUBLIC_TUNNEL_HOST}" >> "$LOG_FILE" 2>&1 &
+        -R "80:localhost:${PORT}" "nokey@${PUBLIC_TUNNEL_HOST}" >> "$LOG_FILE" 2>&1 &
     SSH_PID=$!
 
     for i in {1..20}; do
