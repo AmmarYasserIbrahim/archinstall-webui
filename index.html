@@ -258,6 +258,19 @@
                         <div class="max-w-md mx-auto w-full flex flex-col h-full justify-center" id="deploy-wrapper">
                             <h2 class="text-2xl font-bold text-slate-800 mb-2 shrink-0" id="deploy-title">Ready to Install</h2>
                             <p id="progress-msg" class="text-sm font-medium text-slate-500 mb-8 shrink-0">Review your selections using the sidebar menu. Click Install when ready.</p>
+                            <div class="text-left bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                                <label class="flex items-start gap-2 text-xs text-amber-800 font-semibold">
+                                    <input type="checkbox" id="confirm_disk_wipe" class="mt-0.5 rounded text-amber-600">
+                                    I understand this will erase all data on the selected target disk.
+                                </label>
+                            </div>
+                            <div class="text-left bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6">
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Installation Mode</label>
+                                <select id="install_mode" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
+                                    <option value="safe" selected>Safe mode (recommended defaults)</option>
+                                    <option value="advanced">Advanced mode (manual tuning)</option>
+                                </select>
+                            </div>
                             <div class="flex justify-between items-end mb-2 px-1 shrink-0">
                                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Progress</span>
                                 <span id="progress-pct" class="text-xl font-black text-blue-600">0%</span>
@@ -456,6 +469,10 @@
         }
 
         function validateAll() {
+            if (!document.getElementById('confirm_disk_wipe').checked) {
+                document.getElementById('progress-msg').innerText = "You must confirm disk wipe acknowledgment before starting installation.";
+                return false;
+            }
             return validateStep(2) && validateStep(4) && validateStep(6) && validateStep(8);
         }
 
@@ -727,6 +744,7 @@
             const optRepos = Array.from(document.querySelectorAll('.repo-cb:checked')).map(cb => cb.value);
             const extraPkgs = document.getElementById('extra_packages').value.split(',').map(s => s.trim()).filter(s => s);
             const userGroupsRaw = document.getElementById('user_groups').value.split(',').map(s => s.trim()).filter(s => s);
+            const installMode = document.getElementById('install_mode').value;
             if(!userGroupsRaw.includes('wheel')) userGroupsRaw.push('wheel');
             
             const configPayload = {
@@ -747,7 +765,10 @@
                 "packages": extraPkgs
             };
             
-            configPayload.mirror_config = { "mirror_regions": { "Worldwide": ["http://192.168.160.137:9129/repo/archlinux/$repo/os/$arch"] }, "custom_config": true };
+            if (installMode === "safe") {
+                configPayload.kernels = ["linux"];
+                configPayload.pacman_config.parallel_downloads = 5;
+            }
             if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
             if (document.getElementById('srv_bluetooth') && document.getElementById('srv_bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
             if (document.getElementById('srv_firewall') && document.getElementById('srv_firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
@@ -783,8 +804,20 @@
             const rootPass = document.getElementById('root_password').value;
             if (rootPass) credsPayload["!root_password"] = rootPass;
 
-            await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
-            initializeLiveProgressEventStream();
+            try {
+                const response = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
+                const body = await response.json();
+                if (!response.ok || !body.success) {
+                    throw new Error(body.error || "Submission failed");
+                }
+                initializeLiveProgressEventStream();
+            } catch (err) {
+                document.getElementById('deploy-title').innerText = "Deployment Halted";
+                document.getElementById('progress-msg').innerText = `Submission error: ${err.message}`;
+                document.getElementById('progress-msg').className = "text-sm font-medium text-red-500 mb-8 shrink-0";
+                document.getElementById('nav-footer').style.display = 'flex';
+                document.getElementById('btn-next-step').innerText = "Retry";
+            }
         }
 
         function initializeLiveProgressEventStream() {

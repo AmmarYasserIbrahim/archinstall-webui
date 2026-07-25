@@ -1,132 +1,82 @@
-# Archinstall WebUI 🚀
+# Archinstall WebUI
 
-A gorgeous, mobile-friendly remote dashboard for the official Arch Linux installer.
+Safe remote UI wrapper for the official Arch Linux `archinstall` flow.
 
-Building an Arch Linux system usually means staring at a text-based installer in a terminal. Archinstall WebUI transforms that experience by launching a lightweight server directly from your Arch Live USB, creating a secure temporary tunnel, and generating a QR code. Scan the code with your phone and configure your entire Arch Linux installation from a beautiful web interface.
+## Project Scope
 
-## ✨ Key Features
+This project provides a browser-based configuration UI and a lightweight local API that generates and executes `archinstall` configuration on an Arch ISO environment.
 
-- 📱 **Mobile-First Dashboard** — Configure language, disk partitions, desktop profiles, and user credentials from any web browser.
-- 🔗 **Zero-Setup Tunneling** — Automatically exposes the local server using a secure `localhost.run` tunnel.
-- 🧠 **Smart Partitioning Engine** — Handles sector alignment, GPT header buffers, and BTRFS subvolume creation automatically.
-- ⚡ **Real-Time Progress Sync** — Installation progress updates live on both your phone and monitor.
-- 🎨 **Complete Customization** — Select desktop environments, window managers, kernels, audio servers, and additional packages.
+- In scope: guided config, disk layout modeling, telemetry display, execution orchestration, progress streaming.
+- Out of scope: replacing `archinstall`, persistent cloud service, unattended fleet provisioning, non-Arch installers.
 
----
+## Supported Environments
 
-## 🚀 Quick Start
+- Arch Linux live ISO environments.
+- Boot modes: UEFI and BIOS (with bootloader validation in UI).
+- Networking:
+  - Default: LAN URL (`http://<local-ip>:5000`).
+  - Optional tunnel mode via `localhost.run` when enabled.
+- Hardware assumptions:
+  - Target block device visible via `lsblk` as type `disk`.
+  - Destructive install flow (selected disk will be wiped).
 
-### 1. Boot the Arch Linux Live ISO
+See `/home/runner/work/archinstall-webui/archinstall-webui/docs/COMPATIBILITY.md` for compatibility policy.
 
-Start your computer using the official Arch Linux installation media.
+## Secure Quick Start (Release Artifact + Checksum)
 
-### 2. Connect to the Internet
-
-Use Ethernet or connect to Wi-Fi:
-
-```bash
-iwctl
-```
-
-### 3. Launch Archinstall WebUI
-
-Run:
+1. Download versioned release assets from GitHub Releases (example uses `v0.1.0`):
 
 ```bash
-curl -sL is.gd/archinstall_webui | bash
+VERSION="v0.1.0"
+curl -fLO "https://github.com/AmmarYasserIbrahim/archinstall-webui/releases/download/${VERSION}/install.sh"
+curl -fLO "https://github.com/AmmarYasserIbrahim/archinstall-webui/releases/download/${VERSION}/checksums.txt"
+sha256sum -c checksums.txt --ignore-missing
+chmod +x install.sh
+sudo ./install.sh
 ```
 
-### 4. Scan the QR Code
-
-After the script finishes downloading and starting the services, a QR code will appear in your terminal.
-
-Scan it with your phone's camera.
-
-### 5. Configure and Install
-
-Open the dashboard, configure your installation preferences, and click **Start Installation**.
-
-Your computer will immediately begin partitioning disks and installing Arch Linux.
-
----
-
-## 🛠️ How It Works
-
-The project consists of three lightweight components:
-
-### `install.sh`
-
-The deployment wrapper that:
-
-- Installs required dependencies (such as `qrencode`)
-- Downloads project assets
-- Starts the backend server
-- Creates the SSH reverse tunnel
-
-### `server.py`
-
-The Python backend that:
-
-- Detects system hardware
-- Processes WebUI requests
-- Generates a validated Archinstall configuration
-- Executes the official `archinstall` engine
-
-### `index.html`
-
-A single-file frontend built with Tailwind CSS that provides:
-
-- Interactive installation dashboard
-- Live validation
-- Partition sizing calculations
-- Responsive mobile interface
-
----
-
-## ⚠️ Troubleshooting
-
-### Tunnel Failed / LAN Mode Activated
-
-If the SSH tunnel is blocked or times out, the application automatically falls back to LAN mode.
-
-Ensure your phone is connected to the same network as the target computer, then open the displayed address in your browser:
-
-```text
-http://192.168.1.50:5000
-```
-
-(Your IP address may differ.)
-
-### "Target Is Busy" or Disk Mount Errors
-
-The backend automatically attempts lazy unmounts to clean up drives from previous failed installation attempts.
-
-If disk sizing or partitioning issues persist:
-
-1. Open **Disk Configuration**
-2. Click **Restore Default**
-3. Generate a safe partition layout automatically
-
-This creates a mathematically valid configuration designed to avoid partition alignment and sizing errors.
-
----
-
-## 📦 Requirements
-
-- Arch Linux Live ISO
-- Internet connection
-- Smartphone, tablet, or another device with a web browser
-
----
-
-### Repository
+2. Optional runtime env flags:
 
 ```bash
-git clone https://github.com/AmmarYasserIbrahim/archinstall-webui.git
+ARCHWEBUI_TUNNEL_MODE=none ./install.sh
+ARCHWEBUI_TUNNEL_MODE=localhostrun ./install.sh
+ARCHWEBUI_CORS_ORIGIN="https://your-origin.example" ARCHWEBUI_API_TOKEN="strong-token" ./install.sh
 ```
 
----
+## Security Model
 
-## 📝 License
+- Threat model:
+  - Local/LAN attacker trying to submit malicious install payloads.
+  - User mistakes that can wipe unintended disks.
+- Controls:
+  - Device path and payload validation server-side.
+  - Disk targets restricted to actual `lsblk` disk devices.
+  - No wildcard CORS by default; opt-in specific origin only.
+  - Optional API token requirement for mutating endpoints.
+  - Explicit UI acknowledgment before destructive install submission.
+- Data handling:
+  - Runtime config and credentials stored in `/tmp/config.json` and `/tmp/creds.json`.
+  - Logs stored in `/tmp/archinstall-webui.log`.
+  - Files are ephemeral for the live session; users should reboot and clear session media post-install.
 
-Distributed under the MIT License. See `LICENSE` for more detailed information parameters.
+See `/home/runner/work/archinstall-webui/archinstall-webui/SECURITY.md` for disclosure policy.
+
+## Operations and Recovery
+
+- If tunnel setup fails, installer falls back to LAN mode automatically.
+- If API submission fails, UI presents server-side validation error and allows retry.
+- If install fails, check `/tmp/archinstall-webui.log` and state output `/tmp/archinstall-state.txt`.
+
+## Open Source Standards
+
+- Contributing guide: `/home/runner/work/archinstall-webui/archinstall-webui/CONTRIBUTING.md`
+- Code of conduct: `/home/runner/work/archinstall-webui/archinstall-webui/CODE_OF_CONDUCT.md`
+- Support policy: `/home/runner/work/archinstall-webui/archinstall-webui/SUPPORT.md`
+- Roadmap: `/home/runner/work/archinstall-webui/archinstall-webui/ROADMAP.md`
+- Changelog: `/home/runner/work/archinstall-webui/archinstall-webui/CHANGELOG.md`
+- Architecture: `/home/runner/work/archinstall-webui/archinstall-webui/docs/ARCHITECTURE.md`
+- ADRs: `/home/runner/work/archinstall-webui/archinstall-webui/docs/adr/`
+
+## License
+
+MIT.
