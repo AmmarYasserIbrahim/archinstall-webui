@@ -1,159 +1,256 @@
 import http.server
-import socketserver
 import json
-import subprocess
 import os
+import re
+import socketserver
+import subprocess
 import threading
 import time
-import re
 from urllib.parse import urlparse
 
-PORT = 5000
+PORT = int(os.environ.get('ARCHWEBUI_PORT', '5000'))
 CONFIG_PATH = '/tmp/config.json'
 CREDS_PATH = '/tmp/creds.json'
 LOG_FILE = '/tmp/archinstall-webui.log'
 STATE_FILE = '/tmp/archinstall-state.txt'
+ALLOWED_ORIGIN = os.environ.get('ARCHWEBUI_CORS_ORIGIN', '').strip()
+REMOTE_API_TOKEN = os.environ.get('ARCHWEBUI_API_TOKEN', '').strip()
 
-install_state = {"percentage": 0, "message": "Awaiting mobile configuration matrix...", "status": "idle"}
+install_state = {'percentage': 0, 'message': 'Awaiting mobile configuration matrix...', 'status': 'idle'}
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+DEVICE_RE = re.compile(r'^/dev/[a-zA-Z0-9._/-]+$')
+USERNAME_RE = re.compile(r'^[a-z_][a-z0-9_-]*$')
+HOSTNAME_RE = re.compile(r'^[a-zA-Z0-9](?:[a-zA-Z0-9.-]{0,61}[a-zA-Z0-9])?$')
+
 
 def update_state(pct, msg, status):
     global install_state
-    if status not in ["idle", "error"] and pct < install_state["percentage"]:
-        pct = install_state["percentage"]
-    install_state = {"percentage": pct, "message": msg, "status": status}
+    if status not in ['idle', 'error'] and pct < install_state['percentage']:
+        pct = install_state['percentage']
+    install_state = {'percentage': pct, 'message': msg, 'status': status}
     try:
-        with open(STATE_FILE, 'w') as f:
-            f.write(f"{pct}|{msg}|{status}\n")
-    except: pass
+        with open(STATE_FILE, 'w', encoding='utf-8') as state_file:
+            state_file.write(f'{pct}|{msg}|{status}\n')
+    except Exception:
+        pass
+
 
 def get_tail_logs(lines=150):
     try:
-        with open(LOG_FILE, 'r') as f:
-            return [line.strip() for line in f.readlines()[-lines:] if line.strip()]
-    except:
+        with open(LOG_FILE, 'r', encoding='utf-8') as log_file:
+            return [line.strip() for line in log_file.readlines()[-lines:] if line.strip()]
+    except Exception:
         return []
 
+
+def safe_run(cmd, append_log=True, check=False):
+    with open(LOG_FILE, 'a', encoding='utf-8') as log_file:
+        stdout = log_file if append_log else subprocess.DEVNULL
+        stderr = log_file if append_log else subprocess.DEVNULL
+        return subprocess.run(cmd, stdout=stdout, stderr=stderr, check=check)
+
+
+def read_stdout(cmd):
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False)
+    return result.stdout.strip()
+
+
+def discover_disk_devices():
+    devices = set()
+    try:
+        lsblk_out = read_stdout(['lsblk', '-dn', '-o', 'NAME,TYPE'])
+        for row in lsblk_out.splitlines():
+            parts = row.split()
+            if len(parts) == 2 and parts[1] == 'disk':
+                devices.add(f'/dev/{parts[0]}')
+    except Exception:
+        return set()
+    return devices
+
+
+def validate_device_path(device):
+    if not isinstance(device, str) or not DEVICE_RE.match(device):
+        raise ValueError('Invalid device path format.')
+    allowed = discover_disk_devices()
+    if not allowed:
+        raise ValueError('Unable to validate available block devices on host.')
+    if device not in allowed:
+        raise ValueError(f'Device {device} is not an available block disk.')
+
+
+def validate_payload(config, creds):
+    if not isinstance(config, dict):
+        raise ValueError('config must be a JSON object.')
+    if not isinstance(creds, dict):
+        raise ValueError('creds must be a JSON object.')
+
+    disk_mods = config.get('disk_config', {}).get('device_modifications', [])
+    if not disk_mods:
+        raise ValueError('disk_config.device_modifications is required.')
+
+    for mod in disk_mods:
+        device = mod.get('device')
+        validate_device_path(device)
+
+    users = creds.get('users', [])
+    if not users:
+        raise ValueError('At least one user must be provided in creds.users.')
+
+    username = users[0].get('username', '')
+    if not USERNAME_RE.match(username):
+        raise ValueError('Primary username has an invalid format.')
+
+    hostname = config.get('hostname', 'archlinux')
+    if hostname and not HOSTNAME_RE.match(hostname):
+        raise ValueError('Hostname format is invalid.')
+
+
 def get_system_telemetry():
-    telemetry = {"cpu": "x86_64 Architecture", "boot_mode": "BIOS", "hardware": {}}
+    telemetry = {'cpu': 'x86_64 Architecture', 'boot_mode': 'BIOS', 'hardware': {}}
     try:
-        cpu_out = subprocess.check_output('lscpu | grep "Model name:" | sed "s/Model name: *//"', shell=True)
-        telemetry['cpu'] = cpu_out.decode('utf-8').strip()
-    except: pass
-    telemetry['boot_mode'] = "UEFI" if os.path.exists('/sys/firmware/efi/efivars') else "BIOS"
+        cpu_out = read_stdout(['lscpu'])
+        for line in cpu_out.splitlines():
+            if line.strip().startswith('Model name:'):
+                telemetry['cpu'] = line.split(':', 1)[1].strip()
+                break
+    except Exception:
+        pass
+
+    telemetry['boot_mode'] = 'UEFI' if os.path.exists('/sys/firmware/efi/efivars') else 'BIOS'
     try:
-        lsblk_out = subprocess.check_output('lsblk -b -Jno NAME,SIZE,TYPE', shell=True)
-        telemetry['hardware'] = json.loads(lsblk_out.decode('utf-8'))
-    except: pass
+        lsblk_out = read_stdout(['lsblk', '-b', '-J', '-o', 'NAME,SIZE,TYPE'])
+        telemetry['hardware'] = json.loads(lsblk_out) if lsblk_out else {}
+    except Exception:
+        pass
     return telemetry
 
+
+def cleanup_for_install(devices):
+    safe_run(['pkill', '-9', 'pacman'])
+    safe_run(['pkill', '-9', 'pacstrap'])
+    safe_run(['swapoff', '-a'])
+    safe_run(['umount', '-l', '-R', '/mnt/archinstall'])
+    safe_run(['umount', '-l', '-R', '/mnt'])
+
+    for dev in devices:
+        validate_device_path(dev)
+        safe_run(['wipefs', '-af', dev])
+        safe_run(['sgdisk', '--zap-all', dev])
+        safe_run(['partprobe', dev])
+
+    safe_run(['udevadm', 'settle'])
+
+
 def run_archinstall():
-    update_state(2, "Clearing disk locks and orphaned mounts...", "running")
-    os.system('pkill -9 pacman >> /tmp/archinstall-webui.log 2>&1')
-    os.system('pkill -9 pacstrap >> /tmp/archinstall-webui.log 2>&1')
-    
-    os.system('swapoff -a >> /tmp/archinstall-webui.log 2>&1')
-    os.system('umount -l -R /mnt/archinstall >> /tmp/archinstall-webui.log 2>&1')
-    os.system('umount -l -R /mnt >> /tmp/archinstall-webui.log 2>&1')
-    
+    update_state(2, 'Clearing disk locks and orphaned mounts...', 'running')
+
     try:
-        with open(CONFIG_PATH, 'r') as f:
-            config = json.load(f)
-            devices = config.get('disk_config', {}).get('device_modifications', [])
-            for mod in devices:
-                dev = mod.get('device')
-                if dev:
-                    os.system(f'umount -l {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    os.system(f'wipefs -af {dev}* >> /tmp/archinstall-webui.log 2>&1')
-                    os.system(f'wipefs -af {dev} >> /tmp/archinstall-webui.log 2>&1')
-                    os.system(f'sgdisk --zap-all {dev} >> /tmp/archinstall-webui.log 2>&1')
-                    os.system(f'partprobe {dev} >> /tmp/archinstall-webui.log 2>&1')
-    except Exception as e:
-        pass
-        
-    os.system('udevadm settle >> /tmp/archinstall-webui.log 2>&1')
-    time.sleep(2)
-    
-    update_state(5, "Synchronizing pacman mirror repositories...", "running")
-    os.system('sed -i "s/#ParallelDownloads = 5/ParallelDownloads = 10/" /etc/pacman.conf')
-    os.system('echo "FallbackNTP=time.google.com time.cloudflare.com" >> /etc/systemd/timesyncd.conf')
-    os.system('systemctl restart systemd-timesyncd >> /tmp/archinstall-webui.log 2>&1')
-    os.system('pacman -Sy --noconfirm >> /tmp/archinstall-webui.log 2>&1')
-    
-    cmd = ["archinstall", "--config", CONFIG_PATH, "--creds", CREDS_PATH, "--silent"]
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg_file:
+            config = json.load(cfg_file)
+    except Exception as exc:
+        update_state(99, f'Invalid runtime config: {exc}', 'error')
+        return
+
+    devices = []
+    try:
+        devices = [
+            mod.get('device')
+            for mod in config.get('disk_config', {}).get('device_modifications', [])
+            if mod.get('device')
+        ]
+        cleanup_for_install(devices)
+    except Exception as exc:
+        update_state(99, f'Disk preflight failed: {exc}', 'error')
+        return
+
+    time.sleep(1)
+    update_state(5, 'Synchronizing pacman repositories...', 'running')
+    safe_run(['pacman', '-Sy', '--noconfirm'])
+
+    cmd = ['archinstall', '--config', CONFIG_PATH, '--creds', CREDS_PATH, '--silent']
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-    
-    # Weight-based thresholds: (trigger_phrase, floor_percentage, ceiling_percentage, message)
+
     indicators = [
-        ("writing partition", 10, 14, "Writing partition tables..."),
-        ("formatting", 15, 19, "Formatting storage block partitions..."),
-        ("mounting", 20, 24, "Mounting target filesystems..."),
-        ("waiting for time sync", 25, 29, "Synchronizing network precision NTP clocks..."),
-        ("installing packages to /mnt", 30, 69, "Bootstrapping Arch Linux base environment..."),
-        ("installing bootloader", 70, 74, "Installing system bootloader..."),
-        ("configuring bootloader", 75, 79, "Injecting system core bootloader configuration..."),
-        ("creating user", 80, 84, "Configuring system users..."),
-        ("enabling service", 85, 89, "Enabling targeted network running services..."),
-        ("setting timezone", 90, 94, "Applying localization and timezone rules..."),
-        ("creating initramfs", 95, 99, "Generating initial ramdisk environment..."),
-        ("installation completed", 100, 100, "Build Successful! Node is safe for hardware restart cycles.")
+        ('writing partition', 10, 14, 'Writing partition tables...'),
+        ('formatting', 15, 19, 'Formatting storage block partitions...'),
+        ('mounting', 20, 24, 'Mounting target filesystems...'),
+        ('waiting for time sync', 25, 29, 'Synchronizing network precision NTP clocks...'),
+        ('installing packages to /mnt', 30, 69, 'Bootstrapping Arch Linux base environment...'),
+        ('installing bootloader', 70, 74, 'Installing system bootloader...'),
+        ('configuring bootloader', 75, 79, 'Injecting system core bootloader configuration...'),
+        ('creating user', 80, 84, 'Configuring system users...'),
+        ('enabling service', 85, 89, 'Enabling targeted network running services...'),
+        ('setting timezone', 90, 94, 'Applying localization and timezone rules...'),
+        ('creating initramfs', 95, 99, 'Generating initial ramdisk environment...'),
+        ('installation completed', 100, 100, 'Build Successful! Node is safe for hardware restart cycles.'),
     ]
-    
+
     current_pct = 5.0
     current_ceiling = 9.0
-    
-    with open(LOG_FILE, 'a') as master_log:
+
+    with open(LOG_FILE, 'a', encoding='utf-8') as master_log:
         for raw_line in process.stdout:
             line_clean = ansi_escape.sub('', raw_line.rstrip())
             lower_line = line_clean.lower()
-            
-            if "archinstall.lib.exceptions" in lower_line or "requires a uefi system" in lower_line or "fatal error:" in lower_line:
-                update_state(99, f"Fatal Error: {line_clean}", "error")
+
+            if 'archinstall.lib.exceptions' in lower_line or 'requires a uefi system' in lower_line or 'fatal error:' in lower_line:
+                update_state(99, f'Fatal Error: {line_clean}', 'error')
                 process.kill()
                 break
-                
+
             hit_checkpoint = False
             for key, b_pct, m_pct, msg in indicators:
                 if key in lower_line and current_pct < b_pct:
                     current_pct = float(b_pct)
                     current_ceiling = float(m_pct)
-                    update_state(int(current_pct), msg, "running" if b_pct < 100 else "completed")
+                    update_state(int(current_pct), msg, 'running' if b_pct < 100 else 'completed')
                     hit_checkpoint = True
                     break
-            
-            # Simple string ops to filter out Pacman's messy output lines 
+
             is_spam = False
-            if " [" in line_clean and "]" in line_clean and ("%" in line_clean or "#" in line_clean or "=" in line_clean or "-" in line_clean):
+            if ' [' in line_clean and ']' in line_clean and ('%' in line_clean or '#' in line_clean or '=' in line_clean or '-' in line_clean):
                 is_spam = True
-            if "downloading..." in lower_line or "Total (" in line_clean or line_clean.strip().endswith("%"):
+            if 'downloading...' in lower_line or 'Total (' in line_clean or line_clean.strip().endswith('%'):
                 is_spam = True
-                
+
             if not is_spam and line_clean.strip():
-                # Fractional flow logic: Every clean log line ticks the progress up slightly
                 if not hit_checkpoint and current_pct < current_ceiling:
                     current_pct += 0.1
                     if current_pct > current_ceiling:
                         current_pct = current_ceiling
-                    if int(current_pct) > install_state["percentage"]:
-                        update_state(int(current_pct), install_state["message"], "running")
-                
-                master_log.write(f"[ARCHINSTALL] {line_clean}\n")
+                    if int(current_pct) > install_state['percentage']:
+                        update_state(int(current_pct), install_state['message'], 'running')
+
+                master_log.write(f'[ARCHINSTALL] {line_clean}\n')
                 master_log.flush()
-                
+
     process.wait()
-    if process.returncode != 0 and install_state["status"] not in ["completed", "error"]:
-        update_state(99, f"Archinstall crashed. Exit Code {process.returncode}. See Log.", "error")
+    if process.returncode != 0 and install_state['status'] not in ['completed', 'error']:
+        update_state(99, f'Archinstall crashed. Exit Code {process.returncode}. See logs.', 'error')
+
+
+def request_has_valid_token(headers):
+    if not REMOTE_API_TOKEN:
+        return True
+    return headers.get('X-ArchWebUI-Token', '') == REMOTE_API_TOKEN
+
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, format, *args): pass
+    def log_message(self, fmt, *args):
+        return
+
     def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        if ALLOWED_ORIGIN:
+            self.send_header('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
+            self.send_header('Vary', 'Origin')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-ArchWebUI-Token')
         super().end_headers()
+
     def do_OPTIONS(self):
-        self.send_response(200, "ok")
+        self.send_response(200, 'ok')
         self.end_headers()
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path == '/':
@@ -174,42 +271,67 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 while True:
                     payload = install_state.copy()
-                    payload["logs"] = get_tail_logs()
+                    payload['logs'] = get_tail_logs()
                     self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode('utf-8'))
                     self.wfile.flush()
-                    if install_state["status"] in ["completed", "error"]: break
+                    if install_state['status'] in ['completed', 'error']:
+                        break
                     time.sleep(1)
-            except: pass
+            except Exception:
+                pass
         else:
             return super().do_GET()
+
     def do_POST(self):
         path = urlparse(self.path).path
-        if path == '/api/submit':
-            length = int(self.headers['Content-Length'])
-            post_data = json.loads(self.rfile.read(length))
-            
-            # --- THE FINAL MIRROR FIX ---
-            # Strip mirror regions from the payload so archinstall leaves the file alone,
-            # but keep optional_repositories (like multilib) intact.
-            if 'config' in post_data and 'mirror_config' in post_data['config']:
-                post_data['config']['mirror_config'].pop('mirror_regions', None)
-            # ----------------------------
 
-            with open(CONFIG_PATH, 'w') as f: json.dump(post_data.get('config', {}), f, indent=4)
-            with open(CREDS_PATH, 'w') as f: json.dump(post_data.get('creds', {}), f, indent=4)
-            
+        if not request_has_valid_token(self.headers):
+            self.send_response(403)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'success': False, 'error': 'Invalid API token'}).encode('utf-8'))
+            return
+
+        if path == '/api/submit':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if length <= 0:
+                    raise ValueError('Empty request body.')
+                post_data = json.loads(self.rfile.read(length))
+                config_payload = post_data.get('config', {})
+                creds_payload = post_data.get('creds', {})
+                validate_payload(config_payload, creds_payload)
+
+                with open(CONFIG_PATH, 'w', encoding='utf-8') as cfg_file:
+                    json.dump(config_payload, cfg_file, indent=4)
+                with open(CREDS_PATH, 'w', encoding='utf-8') as creds_file:
+                    json.dump(creds_payload, creds_file, indent=4)
+            except Exception as exc:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'success': False, 'error': str(exc)}).encode('utf-8'))
+                return
+
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
-            threading.Thread(target=run_archinstall).start()
+            self.wfile.write(json.dumps({'success': True}).encode('utf-8'))
+            threading.Thread(target=run_archinstall, daemon=True).start()
+
         elif path == '/api/reboot':
             self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            threading.Thread(target=lambda: (time.sleep(1), os.system('systemctl reboot'))).start()
+            self.wfile.write(json.dumps({'success': True}).encode('utf-8'))
+            threading.Thread(target=lambda: (time.sleep(1), safe_run(['systemctl', 'reboot'])), daemon=True).start()
 
-class ReuseServer(socketserver.ThreadingTCPServer): allow_reuse_address = True
+
+class ReuseServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+
 
 if __name__ == '__main__':
-    update_state(0, "Awaiting WebUI configuration...", "idle")
-    with ReuseServer(("", PORT), APIHandler) as httpd: httpd.serve_forever()
+    update_state(0, 'Awaiting WebUI configuration...', 'idle')
+    with ReuseServer(('', PORT), APIHandler) as httpd:
+        httpd.serve_forever()
