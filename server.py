@@ -84,21 +84,28 @@ def validate_payload(config, creds):
     if not isinstance(creds, dict):
         raise ValueError('creds must be a JSON object.')
 
-    disk_mods = config.get('disk_config', {}).get('device_modifications', [])
-    if not disk_mods:
-        raise ValueError('disk_config.device_modifications is required.')
+    disk_cfg = config.get('disk_config', {}) or {}
+    config_type = disk_cfg.get('config_type')
+    disk_mods = disk_cfg.get('device_modifications', [])
 
-    for mod in disk_mods:
-        device = mod.get('device')
-        validate_device_path(device)
+    if config_type == 'pre_mounted_config':
+        mountpoint = disk_cfg.get('mountpoint')
+        if not isinstance(mountpoint, str) or not mountpoint.startswith('/'):
+            raise ValueError('disk_config.mountpoint must be an absolute path for pre_mounted_config.')
+    else:
+        for mod in disk_mods:
+            device = mod.get('device')
+            validate_device_path(device)
 
     users = creds.get('users', [])
-    if not users:
-        raise ValueError('At least one user must be provided in creds.users.')
+    root_password = creds.get('!root-password') or creds.get('root_enc_password')
+    if not users and not root_password:
+        raise ValueError('Provide creds.users or a root password in creds.')
 
-    username = users[0].get('username', '')
-    if not USERNAME_RE.match(username):
-        raise ValueError('Primary username has an invalid format.')
+    if users:
+        username = users[0].get('username', '')
+        if not USERNAME_RE.match(username):
+            raise ValueError('Primary username has an invalid format.')
 
     hostname = config.get('hostname', 'archlinux')
     if hostname and not HOSTNAME_RE.match(hostname):
@@ -125,18 +132,27 @@ def get_system_telemetry():
     return telemetry
 
 
-def cleanup_for_install(devices):
+def cleanup_for_install(device_modifications, config_type):
+    if config_type == 'pre_mounted_config':
+        return
+
+    if not device_modifications:
+        return
+
     safe_run(['pkill', '-9', 'pacman'])
     safe_run(['pkill', '-9', 'pacstrap'])
     safe_run(['swapoff', '-a'])
     safe_run(['umount', '-l', '-R', '/mnt/archinstall'])
     safe_run(['umount', '-l', '-R', '/mnt'])
 
-    for dev in devices:
+    for mod in device_modifications:
+        dev = mod.get('device')
+        wipe = bool(mod.get('wipe', False))
         validate_device_path(dev)
-        safe_run(['wipefs', '-af', dev])
-        safe_run(['sgdisk', '--zap-all', dev])
-        safe_run(['partprobe', dev])
+        if wipe:
+            safe_run(['wipefs', '-af', dev])
+            safe_run(['sgdisk', '--zap-all', dev])
+            safe_run(['partprobe', dev])
 
     safe_run(['udevadm', 'settle'])
 
@@ -151,14 +167,17 @@ def run_archinstall():
         update_state(99, f'Invalid runtime config: {exc}', 'error')
         return
 
-    devices = []
+    device_modifications = []
+    config_type = None
     try:
-        devices = [
-            mod.get('device')
-            for mod in config.get('disk_config', {}).get('device_modifications', [])
+        disk_cfg = config.get('disk_config', {}) or {}
+        config_type = disk_cfg.get('config_type')
+        device_modifications = [
+            mod
+            for mod in disk_cfg.get('device_modifications', [])
             if mod.get('device')
         ]
-        cleanup_for_install(devices)
+        cleanup_for_install(device_modifications, config_type)
     except Exception as exc:
         update_state(99, f'Disk preflight failed: {exc}', 'error')
         return
