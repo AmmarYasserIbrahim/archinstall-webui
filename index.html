@@ -228,22 +228,8 @@
                                 <option value="nm">NetworkManager (Default)</option>
                                 <option value="nm_iwd">NetworkManager + iwd backend</option>
                                 <option value="iwd">Standalone iwd</option>
-                                <option value="manual">Manual network config</option>
                                 <option value="iso">Copy ISO Network Config</option>
                             </select>
-                        </div>
-                        <div id="manual-net-fields" class="hidden border border-slate-200 rounded-lg p-3 bg-white space-y-3">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <input type="text" id="manual_iface" placeholder="Interface (e.g. eno1)" class="border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-slate-50">
-                                    <input type="checkbox" id="manual_dhcp" checked class="text-blue-600 rounded focus:ring-blue-500"> DHCP
-                                </label>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <input type="text" id="manual_ip" placeholder="IP/CIDR (e.g. 192.168.1.10/24)" class="border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <input type="text" id="manual_gateway" placeholder="Gateway (e.g. 192.168.1.1)" class="border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                                <input type="text" id="manual_dns" placeholder="DNS CSV (e.g. 1.1.1.1,9.9.9.9)" class="border border-slate-300 bg-white rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-500 shadow-sm">
-                            </div>
                         </div>
                     </div>
                     <div id="panel-time" class="config-panel space-y-5 hidden">
@@ -284,60 +270,6 @@
                                     <option value="safe" selected>Safe mode (recommended defaults)</option>
                                     <option value="advanced">Advanced mode (manual tuning)</option>
                                 </select>
-                            </div>
-                            <div id="advanced-options" class="hidden text-left bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6 space-y-3">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Script</label>
-                                        <select id="adv_script" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm">
-                                            <option value="guided" selected>guided</option>
-                                            <option value="minimal">minimal</option>
-                                            <option value="only_hdd">only_hdd</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Disk Config Type</label>
-                                        <select id="adv_disk_config_type" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm">
-                                            <option value="default_layout" selected>default_layout</option>
-                                            <option value="manual_partitioning">manual_partitioning</option>
-                                            <option value="pre_mounted_config">pre_mounted_config</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <input type="text" id="adv_mountpoint" value="/mnt/archinstall" placeholder="Pre-mounted root mountpoint" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm hidden">
-                                <input type="text" id="adv_console_font" value="default8x16" placeholder="Console font" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                    <label class="flex items-center gap-2"><input type="checkbox" id="adv_silent" class="text-blue-600 rounded"> silent</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" id="adv_debug" class="text-blue-600 rounded"> debug</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" id="adv_offline" class="text-blue-600 rounded"> offline</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" id="adv_no_pkg_lookups" class="text-blue-600 rounded"> no_pkg_lookups</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" id="adv_boot_uki" class="text-blue-600 rounded"> bootloader_config.uki</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" id="adv_boot_removable" class="text-blue-600 rounded"> bootloader_config.removable</label>
-                                </div>
-                                <select id="adv_swap_algo" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm">
-                                    <option value="zstd" selected>swap.algorithm: zstd</option>
-                                    <option value="lz4">swap.algorithm: lz4</option>
-                                    <option value="lz4hc">swap.algorithm: lz4hc</option>
-                                    <option value="lzo">swap.algorithm: lzo</option>
-                                    <option value="lzo-rle">swap.algorithm: lzo-rle</option>
-                                </select>
-                                <select id="adv_plymouth" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm">
-                                    <option value="">bootloader_config.plymouth: none</option>
-                                    <option value="bgrt">bgrt</option>
-                                    <option value="fade-in">fade-in</option>
-                                    <option value="glow">glow</option>
-                                    <option value="script">script</option>
-                                    <option value="solar">solar</option>
-                                    <option value="spinner">spinner</option>
-                                    <option value="spinfinity">spinfinity</option>
-                                    <option value="tribar">tribar</option>
-                                    <option value="text">text</option>
-                                    <option value="details">details</option>
-                                </select>
-                                <textarea id="adv_services" rows="2" placeholder="services (comma/newline separated)" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm font-mono"></textarea>
-                                <textarea id="adv_custom_commands" rows="2" placeholder="custom_commands (one per line)" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm font-mono"></textarea>
-                                <textarea id="adv_extra_config_json" rows="3" placeholder="Extra config JSON object merged last (advanced passthrough)" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm font-mono"></textarea>
-                                <textarea id="adv_extra_creds_json" rows="2" placeholder="Extra creds JSON object merged last (advanced passthrough)" class="w-full border border-slate-300 bg-white rounded-lg py-2 px-3 text-xs outline-none focus:border-blue-500 shadow-sm font-mono"></textarea>
                             </div>
                             <div class="flex justify-between items-end mb-2 px-1 shrink-0">
                                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Progress</span>
@@ -393,56 +325,12 @@
         const desktops = ["Awesome","Bspwm","Budgie","Cinnamon","Cosmic","Deepin","Enlightenment","GNOME","Hyprland","i3-wm","Labwc","Lxqt","Mate","niri","niri - DankMaterialShell","KDE Plasma","Qtile","River","Sway","Xfce4","Xmonad","none"];
         
         function genUUID() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }
-        function parseListInput(v) { return v.split(/[\n,]/).map(s => s.trim()).filter(Boolean); }
-        function deepMerge(target, source) {
-            if (!source || typeof source !== 'object' || Array.isArray(source)) return target;
-            Object.keys(source).forEach(key => {
-                const val = source[key];
-                if (val && typeof val === 'object' && !Array.isArray(val)) {
-                    if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) target[key] = {};
-                    deepMerge(target[key], val);
-                } else {
-                    target[key] = val;
-                }
-            });
-            return target;
-        }
-        function parseAdvancedJSON(id, label) {
-            const raw = document.getElementById(id).value.trim();
-            if (!raw) return {};
-            let parsed;
-            try {
-                parsed = JSON.parse(raw);
-            } catch {
-                throw new Error(`${label} must be valid JSON object`);
-            }
-            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`${label} must be a JSON object`);
-            return parsed;
-        }
-        function updateAdvancedVisibility() {
-            const isAdvanced = document.getElementById('install_mode').value === 'advanced';
-            const adv = document.getElementById('advanced-options');
-            if (adv) adv.classList.toggle('hidden', !isAdvanced);
-            const diskCfgType = document.getElementById('adv_disk_config_type');
-            const mountpoint = document.getElementById('adv_mountpoint');
-            if (mountpoint && diskCfgType) mountpoint.classList.toggle('hidden', diskCfgType.value !== 'pre_mounted_config');
-            const isManualNet = document.getElementById('net_type').value === 'manual';
-            const manualFields = document.getElementById('manual-net-fields');
-            if (manualFields) manualFields.classList.toggle('hidden', !isManualNet);
-            const dhcp = document.getElementById('manual_dhcp');
-            if (dhcp) {
-                ['manual_ip', 'manual_gateway', 'manual_dns'].forEach(id => {
-                    document.getElementById(id).disabled = dhcp.checked;
-                });
-            }
-        }
-
+        
         window.onload = () => {
             initNavigationMenus();
             buildDesktopEnvironmentGrid();
             resetPartitions();
             registerGlobalEventHooks();
-            updateAdvancedVisibility();
             fetchSystemTelemetryData();
         };
 
@@ -576,13 +464,6 @@
                 if (document.getElementById('net_type').value !== "iso" && !document.getElementById('hostname').value.trim()) { 
                     displayError('net-error', "A valid hostname is required."); return false; 
                 }
-                if (document.getElementById('net_type').value === "manual") {
-                    const iface = document.getElementById('manual_iface').value.trim();
-                    const dhcp = document.getElementById('manual_dhcp').checked;
-                    const ip = document.getElementById('manual_ip').value.trim();
-                    if (!iface) { displayError('net-error', "Manual network config requires interface name."); return false; }
-                    if (!dhcp && !ip) { displayError('net-error', "Manual network config needs IP/CIDR when DHCP is disabled."); return false; }
-                }
             }
             return true;
         }
@@ -708,15 +589,6 @@
                     document.getElementById('mobile-step-select').value = activeIndex;
                 }
             });
-            document.getElementById('install_mode').addEventListener('change', updateAdvancedVisibility);
-            document.getElementById('adv_disk_config_type').addEventListener('change', updateAdvancedVisibility);
-            document.getElementById('net_type').addEventListener('change', updateAdvancedVisibility);
-            document.getElementById('manual_dhcp').addEventListener('change', () => {
-                const disabled = document.getElementById('manual_dhcp').checked;
-                ['manual_ip', 'manual_gateway', 'manual_dns'].forEach(id => {
-                    document.getElementById(id).disabled = disabled;
-                });
-            });
             document.getElementById('btn-reboot').addEventListener('click', async () => {
                 document.getElementById('btn-reboot').innerText = "Rebooting Hardware...";
                 document.getElementById('btn-reboot').className = "w-full bg-slate-400 text-white font-bold py-3.5 rounded-lg text-sm shadow-md uppercase tracking-wider cursor-not-allowed mb-4";
@@ -809,7 +681,7 @@
             document.getElementById('logs-wrapper').classList.remove('hidden');
             document.getElementById('logs-wrapper').classList.add('flex');
 
-            let currentStartBytes = 1048576;
+            let currentStartBytes = 1048576; 
             let btrfsConfigured = false;
             let fixedBytes = 0;
             partitions.forEach(p => {
@@ -817,8 +689,8 @@
                 if (p.unit === 'GiB') fixedBytes += p.size * 1024 * 1024 * 1024;
             });
 
-            const usableDiskBytes = selectedDiskBytes - 1048576;
-            const remainingPool = usableDiskBytes - currentStartBytes - fixedBytes;
+            let usableDiskBytes = selectedDiskBytes - 1048576; 
+            let remainingPool = usableDiskBytes - currentStartBytes - fixedBytes;
             
             const partsPayload = partitions.map(p => {
                 let pSizeB = 0;
@@ -875,43 +747,20 @@
             const installMode = document.getElementById('install_mode').value;
             if(!userGroupsRaw.includes('wheel')) userGroupsRaw.push('wheel');
             
-            const installMode = document.getElementById('install_mode').value;
-            const isAdvanced = installMode === "advanced";
-            const diskConfigType = isAdvanced ? document.getElementById('adv_disk_config_type').value : "default_layout";
-
-            const mirrorRegion = document.getElementById('mirror_region').value;
-            const mirrorRegions = mirrorRegion === "Worldwide" ? {} : { [mirrorRegion]: [] };
-
-            let networkConfig = { "type": document.getElementById('net_type').value };
-            if (networkConfig.type === "manual") {
-                networkConfig.nics = [{
-                    "iface": document.getElementById('manual_iface').value.trim() || null,
-                    "dhcp": document.getElementById('manual_dhcp').checked,
-                    "ip": document.getElementById('manual_ip').value.trim() || null,
-                    "gateway": document.getElementById('manual_gateway').value.trim() || null,
-                    "dns": parseListInput(document.getElementById('manual_dns').value)
-                }];
-            }
-
             const configPayload = {
+                "version": "4.3", 
                 "archinstall-language": "English",
                 "app_config": { "audio_config": { "audio": document.getElementById('audio').value } },
                 "bootloader_config": { "bootloader": document.getElementById('bootloader').value, "removable": false, "uki": false },
-                "disk_config": diskConfigType === "pre_mounted_config" ? {
-                    "config_type": "pre_mounted_config",
-                    "mountpoint": document.getElementById('adv_mountpoint').value.trim() || "/mnt/archinstall"
-                } : {
-                    "config_type": diskConfigType,
-                    "device_modifications": [{ "device": selectedDiskVal || "/dev/sda", "wipe": true, "partitions": partsPayload }]
-                },
+                "disk_config": { "config_type": "default_layout", "device_modifications": [{ "device": selectedDiskVal || "/dev/sda", "wipe": true, "partitions": partsPayload }] },
                 "hostname": document.getElementById('hostname').value,
                 "kernels": selKernels.length ? selKernels : ["linux"],
-                "locale_config": { "kb_layout": kbLayouts, "sys_enc": "UTF-8", "sys_lang": document.getElementById('sys_locale').value, "console_font": "default8x16" },
-                "mirror_config": { "mirror_regions": mirrorRegions, "optional_repositories": optRepos },
-                "network_config": networkConfig,
-                "ntp": document.getElementById('ntp_sync').checked,
+                "locale_config": { "kb_layout": kbLayouts, "sys_enc": "UTF-8", "sys_lang": document.getElementById('sys_locale').value },
+                "mirror_config": { "mirror_regions": {}, "optional_repositories": optRepos },
+                "network_config": { "type": document.getElementById('net_type').value },
+                "ntp": document.getElementById('ntp_sync').checked, 
                 "pacman_config": { "color": true, "parallel_downloads": parseInt(document.getElementById('parallel_downloads').value) },
-                "swap": document.getElementById('swap_enabled').checked ? { "enabled": true, "algorithm": "zstd" } : { "enabled": false, "algorithm": "zstd" },
+                "swap": document.getElementById('swap_enabled').checked ? { "enabled": true, "algorithm": "zstd" } : { "enabled": false },
                 "timezone": document.getElementById('timezone').value,
                 "packages": extraPkgs
             };
@@ -920,28 +769,10 @@
                 configPayload.kernels = ["linux"];
                 configPayload.pacman_config.parallel_downloads = 5;
             }
-            if (btrfsConfigured && configPayload.disk_config.config_type !== "pre_mounted_config") configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
+            if (btrfsConfigured) configPayload.disk_config.btrfs_options = { "snapshot_config": { "type": "Timeshift" } };
             if (document.getElementById('srv_bluetooth') && document.getElementById('srv_bluetooth').checked) configPayload.app_config.bluetooth_config = { "enabled": true };
             if (document.getElementById('srv_firewall') && document.getElementById('srv_firewall').checked) configPayload.app_config.firewall_config = { "firewall": "ufw" };
             if (document.getElementById('srv_cups') && document.getElementById('srv_cups').checked) configPayload.app_config.print_service_config = { "enabled": true };
-
-            if (isAdvanced) {
-                configPayload.script = document.getElementById('adv_script').value;
-                configPayload.silent = document.getElementById('adv_silent').checked;
-                configPayload.debug = document.getElementById('adv_debug').checked;
-                configPayload.offline = document.getElementById('adv_offline').checked;
-                configPayload.no_pkg_lookups = document.getElementById('adv_no_pkg_lookups').checked;
-                configPayload.locale_config.console_font = document.getElementById('adv_console_font').value.trim() || 'default8x16';
-                configPayload.bootloader_config.uki = document.getElementById('adv_boot_uki').checked;
-                configPayload.bootloader_config.removable = document.getElementById('adv_boot_removable').checked;
-                configPayload.swap.algorithm = document.getElementById('adv_swap_algo').value;
-                const plymouth = document.getElementById('adv_plymouth').value;
-                if (plymouth) configPayload.bootloader_config.plymouth = plymouth;
-                const services = parseListInput(document.getElementById('adv_services').value);
-                const customCommands = parseListInput(document.getElementById('adv_custom_commands').value);
-                if (services.length) configPayload.services = services;
-                if (customCommands.length) configPayload.custom_commands = customCommands;
-            }
             
             if (selectedDesktopVal !== "none") {
                 let mainType = "Desktop";
@@ -971,21 +802,7 @@
             };
             
             const rootPass = document.getElementById('root_password').value;
-            if (rootPass) credsPayload["!root-password"] = rootPass;
-
-            if (isAdvanced) {
-                try {
-                    deepMerge(configPayload, parseAdvancedJSON('adv_extra_config_json', 'Advanced extra config'));
-                    deepMerge(credsPayload, parseAdvancedJSON('adv_extra_creds_json', 'Advanced extra creds'));
-                } catch (err) {
-                    document.getElementById('deploy-title').innerText = "Deployment Halted";
-                    document.getElementById('progress-msg').innerText = `Submission error: ${err.message}`;
-                    document.getElementById('progress-msg').className = "text-sm font-medium text-red-500 mb-8 shrink-0";
-                    document.getElementById('nav-footer').style.display = 'flex';
-                    document.getElementById('btn-next-step').innerText = "Retry";
-                    return;
-                }
-            }
+            if (rootPass) credsPayload["!root_password"] = rootPass;
 
             try {
                 const response = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: configPayload, creds: credsPayload }) });
